@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { useProgress } from '@react-three/drei'
 
-// 全屏加载遮罩：读取 three LoadingManager 进度（useProgress），
-// 模型/贴图全部加载完（进度到过 100）后淡出并卸载，确保进入时场景已就绪。
-// 纯动态 UI：随真实进度填充的旋转圆环，无文字。
-// 用 CSS 过渡 + setTimeout 控制淡出/卸载（不依赖 rAF，后台/离屏也可靠）。
+// Full-screen loading mask: reads three's LoadingManager progress (useProgress),
+// fades out and unmounts once the model/textures have all loaded (progress has hit 100), so the scene is ready on entry.
+// Purely animated UI: a spinning ring that fills with real progress, no text.
+// CSS transitions + setTimeout control fade-out/unmount (doesn't rely on rAF, so it's reliable in background/offscreen tabs).
 export default function LoadingScreen() {
   const { progress } = useProgress()
-  // reached：进度是否到过 100%（单向 false→true，避免分批加载的抖动）
+  // reached: whether progress has ever hit 100% (one-way false→true, avoids jitter from batched loading)
   const [reached, setReached] = useState(false)
-  const [hiding, setHiding] = useState(false) // 开始淡出
-  const [removed, setRemoved] = useState(false) // 彻底卸载
-  // 记录最高进度，防止分批注册资源时圆环回缩
+  const [hiding, setHiding] = useState(false) // fade-out started
+  const [removed, setRemoved] = useState(false) // fully unmounted
+  // Track the highest progress so the ring never shrinks back as resources register in batches
   const peak = useRef(0)
   peak.current = Math.max(peak.current, Math.min(Math.max(progress, 0), 100))
 
@@ -19,7 +19,7 @@ export default function LoadingScreen() {
     if (progress >= 100) setReached(true)
   }, [progress])
 
-  // 到过 100% 后：停留片刻 → 淡出 → 卸载（一次性，锁定不受后续进度变化影响）
+  // After hitting 100%: pause briefly → fade out → unmount (one-shot, locked against later progress changes)
   useEffect(() => {
     if (!reached) return
     const t1 = setTimeout(() => setHiding(true), 400)

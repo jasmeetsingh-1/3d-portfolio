@@ -1,0 +1,510 @@
+{
+  "_readme": [
+    "This file is the single source of truth for everything the site shows. Edit it and the site updates (the dev server reloads it; a deploy rebuilds it).",
+    "AI tools: read '_aiGuide' below first — it explains every page, section and field. All content is English only.",
+    "Keys starting with '_' are documentation / planning notes only; the site ignores them. Every other key is rendered somewhere.",
+    "Empty values hide their element: '' hides a text/link/image, [] hides a list. You never need to delete a key to hide something.",
+    "Image/model paths are relative to web/public/ (e.g. 'images/acme.png' means web/public/images/acme.png). A leading '/' is fine, and full https:// URLs work too.",
+    "Arrays of objects (résumé entries, sections, work items, work details, social links) can grow or shrink: copy an existing object to add one.",
+    "IMPORTANT: resume.entries.length MUST equal model.focusPoints.length — one 3D camera stop per résumé entry, in the same order."
+  ],
+  "_fileMap": {
+    "site.title": "Browser tab title — injected into web/index.html at build/dev time by web/vite.config.ts",
+    "hero": "web/src/App.tsx → Hero (heading, paragraphs, scroll cue) and the hero corner labels",
+    "socialLinks": "web/src/ui/Resume.tsx → icon buttons inside résumé groups (picked by groups[].linkIds); icons live in web/src/ui/SocialIcons.tsx",
+    "resume": "web/src/ui/Resume.tsx → the résumé timeline",
+    "works": "web/src/ui/Works.tsx → the works gallery and the detail overlay's labels",
+    "workDetails": "web/src/data/workDocs.ts → web/src/ui/Works.tsx detail overlay (matched to works items by slug)",
+    "model": "web/src/scene/Scene.tsx → which 3D model file to load and its camera focus points",
+    "(loader)": "web/src/content.ts imports this file, defines its TypeScript types and resolves asset paths"
+  },
+  "_aiGuide": {
+    "howToUseThis": [
+      "Read this block first if you are an AI tool filling in this file.",
+      "The site is a single-page, scroll-driven 3D portfolio/résumé. English only: write every value in English.",
+      "Visitors scroll top-to-bottom through these screens, in order: hero → résumé timeline → works gallery; clicking a work opens its detail overlay.",
+      "A fixed 3D character model sits behind all the text; the camera moves to a new focus point for each résumé entry as the visitor scrolls.",
+      "Each entry under 'sections' explains one top-level key of this file: what it is, where it shows up on screen, and how to write it.",
+      "Only edit data fields (keys without a leading underscore) and keep key names unchanged — the code reads them by name.",
+      "If the owner hasn't supplied a value, leave it as '' (or []) rather than inventing facts (dates, employers, numbers, links); empty values are simply hidden."
+    ],
+    "pageFlow": [
+      {
+        "order": 1,
+        "screen": "Loading screen",
+        "contentKeys": [],
+        "notes": "A spinning progress ring shown until the 3D model loads. No text to fill."
+      },
+      {
+        "order": 2,
+        "screen": "Hero / About (first screen)",
+        "contentKeys": [
+          "hero",
+          "site"
+        ],
+        "notes": "Big heading + short intro paragraph over the 3D character, a 'scroll' cue at the bottom, and small labels in the corners of a thin decorative frame."
+      },
+      {
+        "order": 3,
+        "screen": "Résumé timeline",
+        "contentKeys": [
+          "resume",
+          "socialLinks",
+          "model.focusPoints"
+        ],
+        "notes": "A vertical timeline on the right half of the screen. Each entry takes about one screen of scrolling, and the 3D camera focuses on a different point for each entry."
+      },
+      {
+        "order": 4,
+        "screen": "Works gallery",
+        "contentKeys": [
+          "works"
+        ],
+        "notes": "Full-height section cards that slide in horizontally as you scroll (stacked vertically on mobile). Each card has a number, a title, a tagline, a cover image and a list of works."
+      },
+      {
+        "order": 5,
+        "screen": "Work detail overlay",
+        "contentKeys": [
+          "workDetails",
+          "works.uiLabels"
+        ],
+        "notes": "Full-screen article opened by clicking a work in the gallery: banner image, title, role/tags, a markdown body and an optional 'Visit site' button."
+      }
+    ],
+    "sections": {
+      "site": {
+        "whatItIs": "Browser-level metadata.",
+        "whereItAppears": "The browser tab title (also what link previews and search engines show).",
+        "fields": {
+          "title": "Tab title, e.g. 'Jane Doe — Portfolio'. Keep it short."
+        }
+      },
+      "hero": {
+        "whatItIs": "The first screen: who the owner is, in one glance.",
+        "whereItAppears": "Large centered heading + paragraph over the 3D character; a scroll cue below; corner labels in the thin frame. Everything fades out as the visitor scrolls.",
+        "fields": {
+          "aboutHeading": "The big heading, e.g. 'About <First name>'. 1–3 words; it's drawn in a large handwritten display font, so shorter looks better.",
+          "aboutParagraphs": "Intro text below the heading. Usually one paragraph of 1–3 sentences (about 40–70 words), first person. Each array item is one paragraph.",
+          "scrollCueLabel": "Small uppercase label above the animated scroll indicator at the bottom of the first screen, e.g. 'SCROLL'. '' hides the label.",
+          "cornerMeta.name": "Top-left corner: the owner's full name.",
+          "cornerMeta.role": "Top-left corner, below the name: job title / one-line identity, e.g. 'Full-Stack Engineer'.",
+          "cornerMeta.tagline": "Top-right corner: a short label, e.g. 'Portfolio — 2026'.",
+          "cornerMeta.focusLine": "Bottom-left corner: 2–4 keywords joined with ' · ', e.g. 'Code · Design · Play'.",
+          "cornerMeta.location": "Right edge (vertical text): location, e.g. 'Based in Berlin'. '' hides it."
+        }
+      },
+      "socialLinks": {
+        "whatItIs": "The owner's social/profile links, shown as small monochrome icon buttons.",
+        "whereItAppears": "Only where a résumé group lists the link's id in resume.entries[].groups[].linkIds. A link with an empty href is not shown.",
+        "fields": {
+          "id": "Platform id. Built-in icons: github, linkedin, x (or twitter), youtube, instagram, email, website, douyin, bilibili, xiaohongshu. Any other id shows a generic link icon.",
+          "label": "Platform name used as the tooltip / screen-reader label, e.g. 'GitHub'.",
+          "href": "Full profile URL (use 'mailto:you@example.com' for email)."
+        }
+      },
+      "resume": {
+        "whatItIs": "The career timeline: education, jobs, ventures, side roles. Its entries are the backbone of the whole page.",
+        "whereItAppears": "The section heading, then a vertical timeline on the right. Each entry has a dot on the line, a period, a place/company name with optional logo, an optional role, bullet points, and optional sub-groups.",
+        "ordering": "Chronological, oldest first (top) to newest (bottom).",
+        "constraints": [
+          "resume.entries.length MUST equal model.focusPoints.length — each entry is one 3D camera stop, matched by position. The dev console warns when they differ.",
+          "Changing the entry count means the 3D model must also be exported with that many focus nodes (see content-plan/3d-model-and-stickers-guide.md)."
+        ],
+        "fields": {
+          "title": "Section heading above the timeline, e.g. 'Résumé' or 'Experience'. '' hides it.",
+          "entries[].period": "Date range, e.g. '2019 – 2022' or '2024 – Now' (en dash with spaces).",
+          "entries[].place": "Company, school or project name, optionally with ' · City', e.g. 'Acme Corp · London'.",
+          "entries[].role": "Title/degree, e.g. 'Senior Engineer' or 'B.S. in Computer Science'. '' hides it.",
+          "entries[].logo.src": "Optional small logo shown next to the place name, as a path relative to web/public/ (e.g. 'images/acme.png' → put the file at web/public/images/acme.png). '' shows no logo.",
+          "entries[].logo.alt": "Company name for screen readers.",
+          "entries[].points": "2–4 short bullet lines (under ~90 characters each): scope, achievements, clients, responsibilities. [] hides the list.",
+          "entries[].groups": "Optional sub-blocks inside an entry, e.g. a product, personal brand or channel. [] if not needed.",
+          "entries[].groups[].heading": "Sub-block title, e.g. a product or channel name.",
+          "entries[].groups[].logoImg": "Optional round logo/avatar before the heading, path relative to web/public/ (e.g. 'images/product.png').",
+          "entries[].groups[].sub": "Short descriptor after the heading, e.g. 'AI support agent'.",
+          "entries[].groups[].items": "1–2 short lines, e.g. key metrics or a one-line description.",
+          "entries[].groups[].linkIds": "ids from socialLinks to show as icon buttons under this group, e.g. ['github','linkedin'].",
+          "entries[].groups[].link": "Optional URL that makes the heading clickable."
+        }
+      },
+      "works": {
+        "whatItIs": "The portfolio: work grouped into a few themed sections (e.g. Client Work, Open Source, Side Projects, Talks).",
+        "whereItAppears": "The horizontal gallery of full-height cards after the résumé. One card per section.",
+        "constraints": [
+          "Aim for 2–5 sections.",
+          "Every item with a slug should have a matching workDetails entry; items without one open a generic placeholder built from uiLabels."
+        ],
+        "fields": {
+          "uiLabels.title": "Small gallery heading in the corner, e.g. 'Works'.",
+          "uiLabels.hint": "Hint shown while the gallery can still be scrolled, e.g. 'Keep scrolling'.",
+          "uiLabels.awardsLabel": "Label before a section's awards list, e.g. 'Awards'.",
+          "uiLabels.visitLabel": "Text of the external-link button in a work's detail, e.g. 'Visit site'.",
+          "uiLabels.closeLabel": "Screen-reader label of the detail overlay's close (✕) button, e.g. 'Back'.",
+          "uiLabels.detailPlaceholder": "Text shown in the detail of a work that has no workDetails entry.",
+          "uiLabels.phImageLabel": "Caption of the image placeholder in that placeholder detail.",
+          "uiLabels.phButtonLabel": "Text of the dummy button in that placeholder detail.",
+          "sections[].id": "Short unique lowercase id, e.g. 'client', 'oss'.",
+          "sections[].no": "Display number: '01', '02', … in order.",
+          "sections[].title": "Section title, 1–3 words, e.g. 'Open Source'.",
+          "sections[].tagline": "One short line shown with the title, e.g. a company name, a stat ('2M+ downloads') or keywords.",
+          "sections[].coverImage": "Cover image path relative to web/public/, e.g. 'works/covers/client.jpg'. If '' or the file is missing, a numbered gradient placeholder is shown.",
+          "sections[].items": "The works in this section, as a flat list.",
+          "sections[].items[].name": "Work title as shown in the list.",
+          "sections[].items[].meta": "Short right-aligned stat or type, e.g. 'Interactive', '1.2M views'. Also shown as the detail's subtitle.",
+          "sections[].items[].tags": "Optional small muted tags, e.g. tech or platforms. Used in the detail when workDetails has no tags.",
+          "sections[].items[].link": "Optional external URL; used for the detail's 'Visit site' button when workDetails has no link.",
+          "sections[].items[].slug": "Lowercase-hyphenated id linking to a workDetails entry, e.g. 'payments-dashboard'.",
+          "sections[].groups": "Optional named groups of plain work titles (no detail pages), shown under items. [] if unused.",
+          "sections[].awards": "Optional award names shown at the bottom of the card. [] hides the awards line.",
+          "sections[].footer": "Optional one-line small print at the bottom of the card, e.g. the tech stack."
+        }
+      },
+      "workDetails": {
+        "whatItIs": "The long-form write-up for a single work, shown full-screen when that work is clicked.",
+        "whereItAppears": "The detail overlay: banner image on top, then title, subtitle (item meta · role), tags, the markdown body, and a 'Visit site' button if a link is set.",
+        "fields": {
+          "slug": "Must exactly match a works.sections[].items[].slug.",
+          "title": "Detail title ('' falls back to the item's name).",
+          "banner": "Banner image path relative to web/public/, e.g. '/works/<slug>/banner.jpg' (file at web/public/works/<slug>/banner.jpg). If missing, a gradient placeholder with the title is shown.",
+          "role": "Owner's role, e.g. 'Lead Developer / Design'.",
+          "tags": "A few short tags shown as badges, e.g. ['Interactive', 'Award Winner'].",
+          "link": "External URL for the 'Visit site' button.",
+          "body": "Markdown as one JSON string (use \\n for line breaks, \\n\\n between paragraphs). 2–5 short paragraphs and/or bullet lists covering the problem, what was built, the owner's role and the outcome. Images: ![alt](/works/<slug>/1.jpg). Video: <video src=\"/works/<slug>/demo.mp4\" autoplay muted loop playsinline></video>."
+        }
+      },
+      "model": {
+        "whatItIs": "Settings for the 3D character behind the page. Nothing here is visible text.",
+        "fields": {
+          "glbPath": "The 3D model file, path relative to web/public/, e.g. 'models/me.glb'.",
+          "focusPoints": "Ordered names of the camera focus nodes inside the glb, e.g. ['focus-1', 'focus-2', 'focus-3']. Length MUST equal resume.entries.length.",
+          "framesPerNode": "Frames between focus nodes in the glb's CameraAction animation. intro3d exports use 50; only change it if your model was authored differently."
+        }
+      },
+      "_underscoreKeys": {
+        "whatItIs": "Planning notes the site ignores: _assetChecklist (image files still to add), model._status / _stickerTheme / _stickerCount (3D model plans), _legal (for the NOTICE file)."
+      }
+    }
+  },
+  "site": {
+    "title": "Jasmeet Singh — Portfolio"
+  },
+  "hero": {
+    "aboutHeading": "About Jasmeet",
+    "aboutParagraphs": [
+      "I'm an AI-focused full-stack engineer who builds production-grade intelligent systems — RAG pipelines, multi-agent architectures and real-time, event-driven platforms. Over 3+ years I've shipped AI support agents across 13+ enterprise deployments, turning LLMs into tools that measurably cut resolution times and ticket volumes."
+    ],
+    "scrollCueLabel": "SCROLL",
+    "cornerMeta": {
+      "name": "Jasmeet Singh",
+      "role": "AI-Focused Full-Stack Engineer",
+      "tagline": "Portfolio — 2026",
+      "focusLine": "AI · Agents · Full-Stack",
+      "location": ""
+    }
+  },
+  "socialLinks": [
+    {
+      "id": "linkedin",
+      "label": "LinkedIn",
+      "href": ""
+    },
+    {
+      "id": "github",
+      "label": "GitHub",
+      "href": ""
+    }
+  ],
+  "resume": {
+    "title": "Résumé",
+    "entries": [
+      {
+        "period": "2019 – 2023",
+        "place": "Guru Nanak Dev University · Amritsar",
+        "role": "Bachelor of Computer Science and Technology",
+        "logo": {
+          "src": "",
+          "alt": "Guru Nanak Dev University"
+        },
+        "points": [
+          "Graduated with 82.1%"
+        ],
+        "groups": []
+      },
+      {
+        "period": "2023",
+        "place": "Khannba Enterprises",
+        "role": "Jr. Software Developer",
+        "logo": {
+          "src": "",
+          "alt": "Khannba Enterprises"
+        },
+        "points": [
+          "Built LLM-powered pre-filled inquiry forms that improved lead conversion",
+          "Drove a 40% rise in organic traffic through SEO and performance work",
+          "Shipped interactive UI and ad placements that lifted retention and revenue"
+        ],
+        "groups": []
+      },
+      {
+        "period": "2024 – Now",
+        "place": "Grazitti Interactive (SearchUnify)",
+        "role": "Software Developer",
+        "logo": {
+          "src": "",
+          "alt": "Grazitti Interactive (SearchUnify)"
+        },
+        "points": [
+          "Built L1 agentic AI support systems across 13+ enterprise deployments",
+          "Designed a Kafka-based multi-agent architecture for parallel, high-throughput work",
+          "Owned client-facing delivery on enterprise rollouts and mentored an intern"
+        ],
+        "groups": [
+          {
+            "heading": "Agentic Suite",
+            "logoImg": "",
+            "sub": "AI support agent",
+            "items": [
+              "Up to 60% ticket deflection through RAG-driven self-service",
+              "Live agent handoff across Salesforce and Zendesk"
+            ],
+            "linkIds": [],
+            "link": ""
+          },
+          {
+            "heading": "AgentHelper",
+            "logoImg": "",
+            "sub": "in-product LLM support app for Salesforce",
+            "items": [
+              "9 enterprise clients onboarded in 11 months",
+              "40% faster case resolution, +35% CSAT, +95% agent productivity"
+            ],
+            "linkIds": [],
+            "link": ""
+          }
+        ]
+      }
+    ]
+  },
+  "works": {
+    "uiLabels": {
+      "title": "Works",
+      "closeLabel": "Back",
+      "hint": "Keep scrolling",
+      "awardsLabel": "Awards",
+      "visitLabel": "Visit site",
+      "detailPlaceholder": "Your work description",
+      "phImageLabel": "Image / Video",
+      "phButtonLabel": "Link button"
+    },
+    "sections": [
+      {
+        "id": "work",
+        "no": "01",
+        "title": "AI at Work",
+        "tagline": "SearchUnify · 13+ enterprise deployments",
+        "coverImage": "works/covers/work.jpg",
+        "items": [
+          {
+            "name": "Agentic Suite — AI Support Agent",
+            "meta": "60% deflection",
+            "tags": [
+              "RAG",
+              "Multi-Agent",
+              "Kafka"
+            ],
+            "link": "",
+            "slug": "agentic-suite"
+          },
+          {
+            "name": "Contextual Agent",
+            "meta": "Proactive AI",
+            "tags": [
+              "LangGraph",
+              "Redis"
+            ],
+            "link": "",
+            "slug": "contextual-agent"
+          },
+          {
+            "name": "AgentHelper",
+            "meta": "9 enterprise clients",
+            "tags": [
+              "Salesforce",
+              "RAG"
+            ],
+            "link": "",
+            "slug": "agenthelper"
+          }
+        ],
+        "groups": [],
+        "awards": [],
+        "footer": "LangChain · LangGraph · Kafka · OpenSearch · Redis · React · Node.js"
+      },
+      {
+        "id": "side",
+        "no": "02",
+        "title": "Side Projects",
+        "tagline": "Tools that remove busywork",
+        "coverImage": "works/covers/side.jpg",
+        "items": [
+          {
+            "name": "Jira Subtask Buddy",
+            "meta": "MERN",
+            "tags": [
+              "Jira API",
+              "Used in-house"
+            ],
+            "link": "",
+            "slug": "jira-subtask-buddy"
+          },
+          {
+            "name": "Jira Mention Visibility",
+            "meta": "Chrome Extension",
+            "tags": [
+              "Jira"
+            ],
+            "link": "",
+            "slug": "jira-mention-visibility"
+          },
+          {
+            "name": "Google Meeting Scheduler",
+            "meta": "Voice AI",
+            "tags": [
+              "Google Calendar API"
+            ],
+            "link": "",
+            "slug": "google-meeting-scheduler"
+          }
+        ],
+        "groups": [],
+        "awards": [],
+        "footer": "React · Node.js · MongoDB · Lovable · Cursor"
+      }
+    ]
+  },
+  "workDetails": [
+    {
+      "slug": "agentic-suite",
+      "title": "Agentic Suite — AI Support Agent",
+      "banner": "/works/agentic-suite/banner.jpg",
+      "role": "End-to-end owner & architect",
+      "tags": [
+        "RAG",
+        "Multi-Agent",
+        "Kafka",
+        "Salesforce",
+        "Zendesk"
+      ],
+      "link": "",
+      "body": "A scalable AI-powered support agent with real-time assist — summaries and suggested responses — built for enterprise support teams.\n\n**What I built**\n\n- Configurable multi-agent workflows through an admin workflow builder, so each client can customise classification, troubleshooting and escalation.\n- RAG-driven self-service and AI resolution flows that answer queries in real time, before a ticket is ever created.\n- Intelligent routing and agent-assist that improve first-contact resolution.\n- Live agent handoff across Salesforce and Zendesk, passing full conversation context to the human agent.\n- A Kafka-based event-streaming design that decouples producers and consumers, keeping the multi-agent system modular, parallel and high-throughput.\n\n**Outcome**\n\nUp to 60% ticket deflection and 20–30% faster resolution, delivered across 4+ enterprise implementations. I also owned client-facing delivery and mentored an intern on the team."
+    },
+    {
+      "slug": "contextual-agent",
+      "title": "Contextual Agent",
+      "banner": "/works/contextual-agent/banner.jpg",
+      "role": "Architect",
+      "tags": [
+        "LangGraph",
+        "LLM",
+        "Redis"
+      ],
+      "link": "",
+      "body": "Users often struggle to explain their issue or give the context support needs. The Contextual Agent flips that around: it engages proactively, already knowing where the user is and what they're likely stuck on.\n\n**How it works**\n\n- A DOM intelligence pipeline extracts signals from the page the user is on.\n- An LLM-powered intent prediction engine turns those signals into context-aware suggestions.\n- LangGraph keeps conversational context persistent end to end.\n- Redis caching avoids repeat LLM calls for returning visits to the same page, cutting inference costs."
+    },
+    {
+      "slug": "agenthelper",
+      "title": "AgentHelper",
+      "banner": "/works/agenthelper/banner.jpg",
+      "role": "End-to-end owner & architect",
+      "tags": [
+        "Salesforce",
+        "RAG",
+        "OpenSearch",
+        "LLM"
+      ],
+      "link": "",
+      "body": "An in-product, full-stack LLM support application integrated with Salesforce, giving support agents everything they need without switching tools.\n\n**What I built**\n\n- A context-aware system that aggregates case comments, history, Jira updates and knowledge-base content into real-time insights.\n- Case intelligence: timeline reconstruction, structured summaries and response assist.\n- Multilingual Response Assist using case state, sentiment, history, language detection and translation workflows.\n- RAG retrieval with OpenSearch/FAISS to surface relevant articles, similar cases and experts.\n- A drag-and-drop, agent-level customisable UI, tuned per client using usage insights.\n- Intelligent swarming, shipped with zero QA and UAT defects.\n\n**Outcome**\n\n9 enterprise clients onboarded within 11 months, 95% higher agent productivity, 40% faster case resolution and a 35% improvement in CSAT."
+    },
+    {
+      "slug": "jira-subtask-buddy",
+      "title": "Jira Subtask Buddy",
+      "banner": "/works/jira-subtask-buddy/banner.jpg",
+      "role": "Solo builder",
+      "tags": [
+        "MERN",
+        "Jira API",
+        "Lovable",
+        "Cursor"
+      ],
+      "link": "",
+      "body": "Creating Jira subtasks took 20+ clicks. Jira Subtask Buddy brings it down to 4.\n\nI built the full MERN tool, integrated with the Jira APIs, in a single weekend — Lovable for the UI and Cursor for the backend. It saves about 7 minutes per subtask, is now actively used within the company, and keeps getting new features based on team feedback."
+    },
+    {
+      "slug": "jira-mention-visibility",
+      "title": "Jira Mention Visibility",
+      "banner": "/works/jira-mention-visibility/banner.jpg",
+      "role": "Developer",
+      "tags": [
+        "Chrome Extension",
+        "Jira"
+      ],
+      "link": "",
+      "body": "A Chrome extension that surfaces Jira mentions and tagged comments in real time, so nothing gets missed and team accountability stays high."
+    },
+    {
+      "slug": "google-meeting-scheduler",
+      "title": "Google Meeting Scheduler",
+      "banner": "/works/google-meeting-scheduler/banner.jpg",
+      "role": "Developer",
+      "tags": [
+        "Voice AI",
+        "Google Calendar API"
+      ],
+      "link": "",
+      "body": "A voice-activated AI meeting scheduler connected to the real Google Calendar API. It checks availability automatically and removes the back-and-forth of manual scheduling."
+    }
+  ],
+  "model": {
+    "glbPath": "models/me.glb",
+    "focusPoints": [
+      "focus-1",
+      "focus-2",
+      "focus-3"
+    ],
+    "framesPerNode": 50,
+    "_status": "pending — will be exported from intro3d.com later, see content-plan/3d-model-and-stickers-guide.md",
+    "_stickerTheme": "",
+    "_stickerCount": ""
+  },
+  "_assetChecklist": {
+    "employerLogos": [
+      {
+        "usedFor": "Guru Nanak Dev University (education entry)",
+        "putFileIn": "web/public/images/ (then set that entry's logo.src, e.g. 'images/<file>.png')"
+      },
+      {
+        "usedFor": "Khannba Enterprises",
+        "putFileIn": "web/public/images/ (then set that entry's logo.src, e.g. 'images/<file>.png')"
+      },
+      {
+        "usedFor": "Grazitti Interactive (SearchUnify)",
+        "putFileIn": "web/public/images/ (then set that entry's logo.src, e.g. 'images/<file>.png')"
+      }
+    ],
+    "workCovers": [
+      {
+        "sectionId": "work",
+        "putFileIn": "web/public/works/covers/work.jpg"
+      },
+      {
+        "sectionId": "side",
+        "putFileIn": "web/public/works/covers/side.jpg"
+      }
+    ]
+  },
+  "_legal": {
+    "authorName": "Jasmeet Singh",
+    "copyrightYear": "2026"
+  }
+}

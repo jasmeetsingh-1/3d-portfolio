@@ -1,13 +1,13 @@
-# 仓库根级忽略（前端应用自身的忽略规则见 web/.gitignore）
+# Repo-root ignores (the front-end app's own rules are in web/.gitignore)
 
-# 系统 / 编辑器
+# OS / editor
 .DS_Store
 *.log
 
-# 本地工具与部署产物（含本地路径/服务器信息，不入库）
+# Local tools and deploy artifacts (contain local paths/server info, not tracked)
 .claude/
 deploy/
 
-# Blender 自动备份
+# Blender auto-backups
 *.blend1
 *.blend2

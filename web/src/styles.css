@@ -14,7 +14,7 @@
 
 html {
   scroll-behavior: smooth;
-  /* 禁用触底/触顶橡皮筋回弹：必须落在根滚动元素 html 上才在各浏览器可靠生效 */
+  /* Disable rubber-band overscroll at the top/bottom: it must be on the root scroll element (html) to work reliably across browsers */
   overscroll-behavior: none;
 }
 
@@ -29,7 +29,7 @@ body,
 
 body {
   overflow-x: hidden;
-  /* 与 html 一致，双保险禁用橡皮筋回弹：滚到作品集最后一屏时不再被上移又弹回，紧贴底部 */
+  /* Same as html, a second guard against rubber-banding: on the works' last screen it no longer shifts up and bounces back, and stays flush to the bottom */
   overscroll-behavior: none;
 }
 
@@ -37,12 +37,12 @@ canvas {
   display: block;
 }
 
-/* ---------- 固定 3D 背景 + 滚动渐暗 + 内容层 ---------- */
+/* ---------- Fixed 3D background + scroll darken + content layer ---------- */
 .scene-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
-  pointer-events: none; /* 事件穿透，滚动与视差互不干扰 */
+  pointer-events: none; /* pointer events pass through, so scrolling and parallax don't interfere */
 }
 
 .scene-bg canvas {
@@ -55,8 +55,8 @@ canvas {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  /* 仅右侧（时间轴所在）压暗，向左平滑渐隐。
-     配合 framer 上限 0.4：时间轴左缘 alpha≈0.75(→0.3)、右侧 1.0(→0.4) */
+  /* Darken only the right side (where the timeline is), fading smoothly to the left.
+     With framer's 0.4 cap: alpha≈0.75 (→0.3) at the timeline's left edge, 1.0 (→0.4) on the right */
   background: linear-gradient(
     to right,
     rgba(10, 14, 22, 0) 20%,
@@ -70,8 +70,8 @@ canvas {
   z-index: 10;
 }
 
-/* 固定磨砂右轨：上/右/下溢出屏幕外（无可见边），仅左缘柔化淡入场景；
-   blur 取背后的场景，文字在 .content(z10) 之上保持清晰 */
+/* Fixed frosted right rail: overflows the screen on top/right/bottom (no visible edges), only the left edge softly fades into the scene;
+   the blur samples the scene behind it, and text stays sharp above .content (z10) */
 .glass-rail {
   position: fixed;
   top: -2px;
@@ -87,18 +87,18 @@ canvas {
   mask: linear-gradient(to right, transparent 0%, #000 46%);
 }
 
-/* ---------- 首屏 ---------- */
+/* ---------- Hero ---------- */
 .hero {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
-  /* 标题正文略下移 */
+  /* Shift the title and body down slightly */
   padding-bottom: 6vh;
 }
 
-/* 首屏底部渐变底色（滚动后由 framer 控制淡出） */
+/* Hero bottom gradient (faded out by framer on scroll) */
 .hero-gradient {
   position: fixed;
   left: 0;
@@ -107,7 +107,7 @@ canvas {
   height: 35vh;
   z-index: 2;
   pointer-events: none;
-  /* 深墨绿；底部(100vh)alpha 0.5，向上到 65vh 处淡为 0（底部 35vh 渐隐带） */
+  /* Deep ink green; alpha 0.5 at the bottom (100vh), fading to 0 by 65vh (a 35vh fade band at the bottom) */
   background: linear-gradient(to top, rgba(9, 33, 22, 0.5) 0%, rgba(9, 33, 22, 0) 100%);
 }
 
@@ -128,7 +128,7 @@ canvas {
   animation: cueLabelPulse 2.4s ease-in-out infinite;
 }
 
-/* 竖向轨道 + 循环向下流动的光点 */
+/* Vertical track + a dot of light looping downward */
 .scroll-cue-track {
   position: relative;
   width: 1px;
@@ -177,7 +177,7 @@ canvas {
   }
 }
 
-/* ---------- 首屏装饰画框 + 角标元数据 ---------- */
+/* ---------- Hero decorative frame + corner metadata ---------- */
 .hero-chrome {
   --m: clamp(16px, 2.4vh, 30px);
   position: fixed;
@@ -187,14 +187,14 @@ canvas {
   font-family: 'Helvetica Neue', 'Chiron GoRound TC', 'PingFang SC', system-ui, sans-serif;
 }
 
-/* 发丝内框 */
+/* Hairline inner frame */
 .hero-frame {
   position: absolute;
   inset: var(--m);
   border: 1px solid rgba(244, 241, 234, 0.1);
 }
 
-/* 四角定位标 “+” */
+/* Corner registration marks "+" */
 .hero-mark {
   position: absolute;
   font-size: 13px;
@@ -222,7 +222,7 @@ canvas {
   transform: translate(50%, 50%);
 }
 
-/* 角标元数据小字 */
+/* Small corner metadata text */
 .hero-meta {
   position: absolute;
   font-size: clamp(9px, 0.9vw, 11px);
@@ -258,20 +258,20 @@ canvas {
   letter-spacing: 0.3em;
 }
 
-/* 窄屏隐藏侧边竖排，避免拥挤 */
+/* Hide the vertical side text on narrow screens to avoid crowding */
 @media (max-width: 640px) {
   .hm-right {
     display: none;
   }
 }
 
-/* ---------- About 叠层（标题 Rancho + 正文 Cormorant Upright） ---------- */
+/* ---------- About overlay (title Rancho + body Cormorant Upright) ---------- */
 .about {
   text-align: center;
   pointer-events: none;
   padding: 0 24px;
 }
-/* 入场动画放内层：其 fill:both 只锁内层 opacity，不影响外层滚动 opacity */
+/* Entrance animation on the inner layer: its fill:both only locks the inner opacity, leaving the outer scroll opacity alone */
 .about-intro {
   animation: fadeDown 1.8s ease both;
 }
@@ -296,7 +296,7 @@ canvas {
   color: var(--ink);
 }
 
-/* 正文内 ZOOOP 链接：容器是 pointer-events:none，链接需单独开启可点 */
+/* ZOOOP link in the body: the container is pointer-events:none, so the link must re-enable clicks itself */
 .about-link {
   pointer-events: auto;
   color: inherit;
@@ -310,50 +310,14 @@ canvas {
   border-bottom-color: #ffd9b3;
 }
 
-/* 中文正文：拉丁衬线字体不含汉字，切到系统中文字体并放大行距 */
-.about[lang='zh'] .about-body {
-  font-family: 'Chiron GoRound TC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  font-weight: 400;
-  font-size: clamp(8.8px, 0.92vw, 12.8px);
-  line-height: 1.7;
-  letter-spacing: 0.02em;
-}
-
-/* ---------- 右上角中英切换 ---------- */
-.lang-toggle {
-  position: fixed;
-  top: 16px;
-  right: 18px;
-  z-index: 110;
-  min-width: 52px;
-  padding: 7px 16px;
-  font-family: 'Helvetica Neue', 'Chiron GoRound TC', 'PingFang SC', system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  background: rgba(12, 16, 24, 0.78);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-}
-
-.lang-toggle:hover {
-  color: var(--ink);
-  background: rgba(20, 26, 38, 0.92);
-  border-color: rgba(244, 241, 234, 0.3);
-}
-
-/* ---------- 履历时间轴 ---------- */
+/* ---------- Résumé timeline ---------- */
 .resume {
-  /* 正文与 resume 间距拉大约一倍 */
+  /* Roughly double the gap between the body and the résumé */
   padding: 20vh 24px 20vh;
 }
 
 .resume-title {
-  /* 与时间轴同宽同位，左对齐（标题左边缘对齐时间轴左边缘） */
+  /* Same width and position as the timeline, left-aligned (the title's left edge lines up with the timeline's) */
   width: min(480px, 90vw);
   margin: 0 6vw 0 auto;
   text-align: left;
@@ -367,11 +331,11 @@ canvas {
 .timeline {
   position: relative;
   width: min(480px, 90vw);
-  /* 靠右排布：左侧留给 3D 模型，时间轴贴画面右侧 */
+  /* Right-aligned layout: the left is left for the 3D model, the timeline hugs the right side */
   margin: 8vh 6vw 0 auto;
 }
 
-/* 竖向时间线 */
+/* Vertical timeline line */
 .timeline::before {
   content: '';
   position: absolute;
@@ -385,13 +349,13 @@ canvas {
 .tl-entry {
   position: relative;
   padding-left: 34px;
-  /* 拉长节点间距：每条履历约占一屏，便于相机随滚动依次聚焦对应锚点 */
+  /* Stretch the node spacing: each entry takes about one screen so the camera can focus each anchor in turn as you scroll */
   padding-bottom: 46vh;
 }
 
 .tl-entry:last-child {
-  /* 末条（zooop）尾部空间：与 .resume 底部 padding 合计约 70vh，
-     使滚到底时末条顶部正好停在视口 30vh（NODE_LINE）处、动画走满第 250 帧 */
+  /* Space after the last entry: together with .resume's bottom padding about 70vh,
+     so at the bottom the last entry's top stops exactly at 30vh of the viewport (NODE_LINE) and the animation reaches its final résumé frame */
   padding-bottom: 38vh;
 }
 
@@ -427,7 +391,7 @@ canvas {
   color: var(--ink);
 }
 
-/* HOTSAR / 坏打印机 logo：黑色线稿放在米色卡片上，保证可见且保留品牌原色 */
+/* Company logos: black line art on a beige card, keeping them visible while preserving the brand colors */
 .tl-logo-chip {
   flex: none;
   display: inline-flex;
@@ -489,7 +453,7 @@ canvas {
   color: var(--ink);
 }
 
-/* 自媒体头像 logo */
+/* Content-creator avatar logo */
 .tl-group-logo {
   flex: none;
   width: 36px;
@@ -513,7 +477,7 @@ canvas {
   color: var(--muted);
 }
 
-/* 平台 logo 一排 */
+/* Row of platform logos */
 .tl-logos {
   display: flex;
   gap: 12px;
@@ -546,31 +510,7 @@ canvas {
   transform: translateY(-2px);
 }
 
-/* ZOOOP 动态 logo */
-.zooop-logo-link {
-  pointer-events: auto;
-  display: inline-flex;
-  color: var(--ink);
-  transition: color 0.2s ease;
-}
-
-.zooop-logo-link:hover {
-  color: #ffd9b3;
-}
-
-.zooop-logo {
-  display: block;
-  height: 20.8px;
-  width: auto;
-}
-
-/* 中文履历：行距放宽一点更耐读 */
-.resume[lang='zh'] .tl-points li,
-.resume[lang='zh'] .tl-role {
-  line-height: 1.75;
-}
-
-/* ---------- 顶部署名小字 ---------- */
+/* ---------- Small top byline ---------- */
 .credit {
   position: fixed;
   top: 22px;
@@ -583,7 +523,7 @@ canvas {
   z-index: 11;
   pointer-events: none;
   white-space: nowrap;
-  /* 用 flex 居中而非 translateX：fadeDown 会改写 transform，避免抢占导致右偏 */
+  /* Center with flex instead of translateX: fadeDown rewrites transform, and the conflict would push it right */
   animation: fadeDown 1.9s ease both;
 }
 
@@ -593,7 +533,7 @@ canvas {
   letter-spacing: 0.38em;
   text-transform: uppercase;
   color: var(--muted);
-  /* 抵消尾随字距，保证整体视觉居中 */
+  /* Offset the trailing letter-spacing so it looks centered */
   margin-right: -0.38em;
 }
 
@@ -609,11 +549,11 @@ canvas {
   font-weight: 400;
   letter-spacing: 0.18em;
   color: var(--ink);
-  /* 抵消尾随字距，保证整体视觉居中 */
+  /* Offset the trailing letter-spacing so it looks centered */
   margin-right: -0.18em;
 }
 
-/* ---------- 入场标题 ---------- */
+/* ---------- Entrance title ---------- */
 .intro {
   position: fixed;
   top: 8vh;
@@ -648,7 +588,7 @@ canvas {
   letter-spacing: 0.06em;
 }
 
-/* ---------- 详情面板 ---------- */
+/* ---------- Detail panel ---------- */
 .detail {
   position: fixed;
   top: 0;
@@ -777,7 +717,7 @@ canvas {
   opacity: 0.9;
 }
 
-/* ---------- 提示 / 角标 ---------- */
+/* ---------- Hints / corner labels ---------- */
 .hint {
   position: fixed;
   bottom: 28px;
@@ -825,16 +765,16 @@ canvas {
   }
 }
 
-/* ---------- 作品集：编辑式索引 + 全屏接管 ---------- */
+/* ---------- Works: editorial index + full-screen takeover ---------- */
 .works {
   position: relative;
   z-index: 10;
-  /* 横向滑动画廊：竖滚 pin 转横移；暗色由固定 .stage-fog 蒙层随滚动渐暗+模糊 3D */
+  /* Horizontal sliding gallery: pinned vertical scroll turns into a horizontal pan; the fixed .stage-fog overlay darkens + blurs the 3D as you scroll */
   --wk-card-w: min(880px, 78vw);
 }
 
-/* 固定在 3D 之上的蒙层：进入作品区时随滚动逐渐变暗 + 模糊背景，
-   位于 canvas 之上、内容(.content z10)之下，故只虚化 3D、不影响文字 */
+/* Overlay fixed above the 3D: on entering the works it gradually darkens + blurs the background as you scroll;
+   it sits above the canvas and below the content (.content z10), so it only softens the 3D, not the text */
 .stage-fog {
   position: fixed;
   inset: 0;
@@ -846,7 +786,7 @@ canvas {
   position: relative;
 }
 
-/* sticky 钉住一屏，内部 track 随竖滚横移 */
+/* Sticky pins one screen; the inner track pans horizontally with vertical scroll */
 .wk-gallery-sticky {
   position: sticky;
   top: 0;
@@ -860,15 +800,15 @@ canvas {
   display: flex;
   align-items: stretch;
   height: 100%;
-  /* 板块间无 gap，边到边相连 */
-  /* 起始整排推到视口右缘外：左留白 = 一整屏，滚动时卡片从右侧依次滑入 */
+  /* No gap between sections, edge to edge */
+  /* Start with the whole row pushed past the viewport's right edge: left padding = one full screen, so cards slide in from the right as you scroll */
   padding-left: 100vw;
   padding-right: 0;
   will-change: transform;
 }
 
-/* 全高板块：单栏（编号 + 标题 + 作品清单）。
-   标题固定在顶部偏下同一高度（flex-start，不随清单长短漂移） */
+/* Full-height section: single column (number + title + work list).
+   The title stays at the same height just below the top (flex-start, it doesn't drift with the list length) */
 .wk-card {
   flex: none;
   display: flex;
@@ -878,10 +818,10 @@ canvas {
   width: var(--wk-card-w);
   height: 100%;
   padding: clamp(56px, 11vh, 132px) clamp(40px, 5vw, 76px) clamp(40px, 7vh, 80px);
-  /* 去圆角，相邻处以左边框作分隔 */
+  /* No rounded corners; neighbors are separated by a left border */
   border: none;
   border-left: 1px solid var(--line);
-  /* 不透明实底（无 backdrop-filter）：横移时不实时模糊背景，避免卡顿 */
+  /* Opaque solid background (no backdrop-filter): the background isn't blurred live during the pan, avoiding jank */
   background: rgba(13, 17, 25, 0.66);
   color: var(--ink);
   text-align: left;
@@ -890,7 +830,7 @@ canvas {
   border-right: 1px solid var(--line);
 }
 
-/* 小横图：右侧错落（align-self 右对齐 + 内缩留白），不抢主体 */
+/* Small landscape image: staggered on the right (align-self right + inset padding), so it doesn't compete with the main content */
 .wk-card-cover {
   position: relative;
   flex: none;
@@ -952,13 +892,13 @@ canvas {
   color: var(--muted);
 }
 
-/* 卡内清单区：超高时内部不滚动（避免与横移抢滚轮），靠字号/留白容纳 */
+/* In-card list area: doesn't scroll internally when too tall (to avoid fighting the pan for the wheel); fits via font size/spacing */
 .wk-card-body {
   flex: none;
 }
 
 
-/* 画廊角标题 / 进度点 / 提示 */
+/* Gallery corner title / progress dots / hint */
 .wk-gallery-title {
   position: absolute;
   top: clamp(16px, 4vh, 40px);
@@ -972,7 +912,7 @@ canvas {
   pointer-events: none;
 }
 
-/* 横移进度条（motion scaleX 驱动，无重渲染） */
+/* Pan progress bar (driven by motion scaleX, no re-renders) */
 .wk-progress {
   position: absolute;
   bottom: clamp(22px, 5vh, 50px);
@@ -1006,7 +946,7 @@ canvas {
   pointer-events: none;
 }
 
-/* 极简清单 */
+/* Minimal list */
 .wk-list {
   list-style: none;
   margin: 0;
@@ -1019,7 +959,7 @@ canvas {
   border-bottom: none;
 }
 
-/* 整行按钮：名靠左、数据靠右；hover 暖色微缩进 */
+/* Full-row button: name on the left, stats on the right; warm color and a slight indent on hover */
 .wk-line-btn {
   display: flex;
   align-items: baseline;
@@ -1054,7 +994,7 @@ canvas {
   color: #ffd9b3;
 }
 
-/* 右侧数据：播放量(暖色) + 标签(弱化)，以 · 连排 */
+/* Stats on the right: views (warm color) + tags (muted), joined with · */
 .wk-line-meta {
   flex: none;
   display: flex;
@@ -1084,7 +1024,7 @@ canvas {
   color: rgba(244, 241, 234, 0.3);
 }
 
-/* 分组（其他板块）：小标题 + 同款清单 */
+/* Groups (other sections): small heading + the same list style */
 .wk-sub {
   margin-top: clamp(28px, 4vh, 44px);
 }
@@ -1099,7 +1039,7 @@ canvas {
   margin-bottom: 6px;
 }
 
-/* 底部小字：奖项 / 技术 */
+/* Small print at the bottom: awards / tech */
 .wk-foot {
   margin-top: clamp(32px, 5vh, 56px);
   padding-top: clamp(20px, 3vh, 30px);
@@ -1127,12 +1067,7 @@ canvas {
   letter-spacing: 0.04em;
 }
 
-/* 中文作品区：行距放宽 */
-.works[lang='zh'] .wk-line-name {
-  line-height: 1.5;
-}
-
-/* ---------- 作品全屏沉浸详情 ---------- */
+/* ---------- Full-screen immersive work detail ---------- */
 .wk-detail-backdrop {
   position: fixed;
   inset: 0;
@@ -1146,18 +1081,18 @@ canvas {
   position: fixed;
   inset: clamp(16px, 5vh, 56px) clamp(16px, 6vw, 120px);
   z-index: 70;
-  /* 指定背景色 #1d2124（深炭蓝灰） */
+  /* Fixed background color #1d2124 (deep charcoal blue-grey) */
   background: rgba(29, 33, 36, 0.98);
   border: 1px solid var(--line);
   border-radius: 20px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   box-shadow: 0 50px 140px rgba(0, 0, 0, 0.6);
-  /* 弱化滚动条（Firefox） */
+  /* Subdued scrollbar (Firefox) */
   scrollbar-width: thin;
   scrollbar-color: rgba(244, 241, 234, 0.16) transparent;
 }
-/* 弱化滚动条（WebKit）：细、透明轨道、半透明圆角滑块，hover 略显 */
+/* Subdued scrollbar (WebKit): thin, transparent track, translucent rounded thumb, slightly more visible on hover */
 .wk-detail::-webkit-scrollbar {
   width: 8px;
 }
@@ -1198,7 +1133,7 @@ canvas {
   transform: rotate(90deg);
 }
 
-/* 顶部 banner：图铺满；缺省时低饱和墨绿渐变占位 + 虚字 */
+/* Top banner: the image fills it; by default a desaturated ink-green gradient placeholder + faint text */
 .wk-detail-banner {
   position: relative;
   height: clamp(180px, 42vh, 460px);
@@ -1226,7 +1161,7 @@ canvas {
   letter-spacing: 0.02em;
 }
 
-/* 正文文章：居中窄栏，舒适阅读宽度 */
+/* Article body: centered narrow column at a comfortable reading width */
 .wk-detail-article {
   max-width: 760px;
   margin: 0 auto;
@@ -1271,7 +1206,7 @@ canvas {
   color: rgba(244, 241, 234, 0.8);
 }
 
-/* markdown 正文排版 */
+/* Markdown body typography */
 .wk-md {
   font-size: clamp(14px, 1.4vw, 16px);
   line-height: 1.8;
@@ -1339,7 +1274,7 @@ canvas {
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* 访问外链按钮 */
+/* External "Visit site" button */
 .wk-detail-link {
   display: inline-flex;
   align-items: center;
@@ -1360,7 +1295,7 @@ canvas {
   gap: 0.9em;
 }
 
-/* 详情占位组件：开源版无 md 内容时，演示详情页支持的「图片/视频 + 跳转按钮」等组件 */
+/* Detail placeholder components: when there is no md content, demo the components a detail page supports ("image/video + link button", etc.) */
 .wk-detail-ph-img {
   display: grid;
   place-items: center;
@@ -1394,7 +1329,7 @@ canvas {
   gap: 0.6em;
 }
 
-/* ---------- 加载遮罩：模型全部加载完成前覆盖全屏（进度环，无文字）---------- */
+/* ---------- Loading mask: covers the screen until the model has fully loaded (progress ring, no text) ---------- */
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -1448,11 +1383,11 @@ canvas {
 }
 
 /* ==================================================================
-   移动端适配（≤640px）——置于文件末尾，确保覆盖前面同优先级的基础规则
+   Mobile adaptation (≤640px) — at the end of the file so it overrides earlier base rules of equal specificity
    ================================================================== */
 @media (max-width: 640px) {
-  /* 3) 时间轴文案可读性：每条履历文字落在一块圆角深色半透卡片（tl-body）上，
-        与明亮杂乱的 3D 背景清晰分离；标题不在卡片内，单独加紧贴字缘的 1px 暗描边。 */
+  /* 3) Timeline text readability: each entry's text sits on a rounded, dark, translucent card (tl-body),
+        cleanly separated from the bright, busy 3D background; the title is outside the card and gets its own tight 1px dark outline. */
   .tl-body {
     background: rgba(10, 13, 20, 0.4);
     border-radius: 16px;
@@ -1462,14 +1397,14 @@ canvas {
     text-shadow: 0 0 1px rgba(0, 0, 0, 0.9), 0 1px 2px rgba(0, 0, 0, 0.6);
   }
 
-  /* 移动端文案满屏呈现，右侧磨砂玻璃轨无意义（只会糊掉半屏背景）：隐藏 */
+  /* On mobile the text is full-width, so the right frosted rail is pointless (it would just blur half the background): hide it */
   .glass-rail {
     display: none;
   }
 
-  /* 2) 作品集：由「竖滚 pin + 横移」改为上下堆叠的普通滚动 */
+  /* 2) Works: switch from "pinned vertical scroll + horizontal pan" to normal vertically stacked scrolling */
   .wk-gallery {
-    height: auto !important; /* 覆盖内联 calc(100vh + range) */
+    height: auto !important; /* override the inline calc(100vh + range) */
   }
   .wk-gallery-sticky {
     position: static;
@@ -1480,8 +1415,8 @@ canvas {
   .wk-track {
     flex-direction: column;
     height: auto;
-    padding-left: 0; /* 取消右缘外整屏留白 */
-    transform: none !important; /* 覆盖 framer-motion 的 translateX */
+    padding-left: 0; /* drop the full-screen padding past the right edge */
+    transform: none !important; /* override framer-motion's translateX */
   }
   .wk-card {
     width: 100%;
@@ -1492,20 +1427,20 @@ canvas {
   .wk-card:last-child {
     border-right: none;
   }
-  /* 竖排下横移进度条 / 提示无意义 */
+  /* In the stacked layout the pan progress bar / hint are pointless */
   .wk-progress,
   .wk-hint {
     display: none;
   }
-  /* 画廊标题从 absolute 改为随内容排布，避免叠在首卡上；窄屏放大更醒目、
-     底部留白拉开与第一张卡的距离 */
+  /* The gallery title switches from absolute to normal flow so it doesn't overlap the first card; larger on narrow screens for emphasis,
+     with bottom spacing separating it from the first card */
   .wk-gallery-title {
     position: static;
     padding: clamp(16px, 4vh, 40px) clamp(24px, 6vw, 80px) clamp(20px, 5vh, 48px);
     font-size: clamp(28px, 8vw, 36px);
   }
 
-  /* 作品行：窄屏下标题与右侧数据(播放量/榜单)改为上下排，标题在上、数据在下 */
+  /* Work rows: on narrow screens the title and the stats (views/charts) stack vertically, title on top, stats below */
   .wk-line-btn {
     flex-direction: column;
     align-items: flex-start;
@@ -1517,7 +1452,7 @@ canvas {
     text-align: left;
   }
 
-  /* 窄屏字号整体放大一档，作品文字更醒目 */
+  /* Bump font sizes up a step on narrow screens so the work text stands out */
   .wk-card-title {
     font-size: clamp(27px, 7.4vw, 36px);
   }

@@ -4,21 +4,22 @@ import { useGLTF } from '@react-three/drei'
 import { EffectComposer, Bloom, DepthOfField, SMAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 import Env from './Env'
-import { FOCUS_POINTS, FRAMES_PER_NODE } from '../data/focusPoints'
+import { content, asset, FOCUS_POINTS, FRAMES_PER_NODE } from '../content'
 
-useGLTF.preload(`${import.meta.env.BASE_URL}models/me.glb`)
+const MODEL_URL = asset(content.model.glbPath)!
+useGLTF.preload(MODEL_URL)
 
-// 聚焦锚点（glb 内 focus-* 空对象），顺序对应履历节点；名单是唯一真源，见 data/focusPoints.ts
+// Focus anchors (focus-* empties in the glb), ordered to match the résumé nodes; the list is the single source of truth, see model.focusPoints in content-plan/content.json
 const POINTS = FOCUS_POINTS as readonly string[]
-const M = POINTS.length // 时间轴节点数（= 履历条数），从名单推导，不写死
-const RESUME_FRAMES = M * FRAMES_PER_NODE // 履历区帧数：每节点 FRAMES_PER_NODE 帧（节点 k → 第 k·50 帧）
-const WORKS_ENTRANCE = 50 // 作品区"入场"（画廊屏幕从底部滑入覆盖）占的帧数
-const FPS = 24 // 所有 clip @24fps 共享时间轴；相机动画总帧数运行时从 CameraAction clip 读（见 totalFrames）
-const NODE_LINE = 0.3 // 节点"终点"参考线：条目顶部到达视口该高度(从上 30%)时锁定为该节点
+const M = POINTS.length // number of timeline nodes (= résumé entries), derived from the list, not hardcoded
+const RESUME_FRAMES = M * FRAMES_PER_NODE // frames in the résumé section: FRAMES_PER_NODE per node (node k → frame k·FRAMES_PER_NODE)
+const WORKS_ENTRANCE = 50 // frames used by the works "entrance" (the gallery screen sliding up from the bottom to cover)
+const FPS = 24 // all clips share a 24fps timeline; the camera animation's total frame count is read from the CameraAction clip at runtime (see totalFrames)
+const NODE_LINE = 0.3 // node "arrival" line: when an entry's top reaches this viewport height (30% from the top), that node locks in
 
-// 上下渐变背景球（包裹相机），两端颜色可调
+// Top-to-bottom gradient background sphere (surrounding the camera); both end colors are adjustable
 function GradientBackground() {
-  // glb 相机视角很窄(~23°)，只看到渐变中间一条；陡度把可见窄带拉伸出完整过渡
+  // The glb camera's FOV is very narrow (~23°), so only a middle strip of the gradient is visible; steepness stretches that strip into a full transition
   const top = '#6f906f'
   const bottom = '#dbd3b5'
   const steep = 1.4
@@ -55,7 +56,7 @@ function GradientBackground() {
           uniform float uSteep;
           varying vec3 vDir;
           void main() {
-            // 以地平线(y=0)为中心按陡度拉伸，narrow-fov 下也能看到完整过渡
+            // Stretch around the horizon (y=0) by steepness so the full transition is visible even with a narrow FOV
             float t = clamp(vDir.y * uSteep * 0.5 + 0.5, 0.0, 1.0);
             gl_FragColor = vec4(mix(uBottom, uTop, t), 1.0);
           }
@@ -65,7 +66,7 @@ function GradientBackground() {
   )
 }
 
-// 所有光源（HDRI 环境 + 半球 + 主/补方向光）
+// All lights (HDRI environment + hemisphere + key/fill directional lights)
 function Lights() {
   const c = {
     envIntensity: 0.85,
@@ -104,7 +105,7 @@ function Lights() {
   )
 }
 
-// me.glb：模型 + glb 自带相机动画（滚动分 5 段擦除）+ 自动对焦 + 眼睛跟随
+// me.glb: model + the glb's own camera animation (scrubbed by scroll in 5 segments) + auto-focus + eye follow
 function Man2({
   focusRef,
   frameRef,
@@ -122,8 +123,8 @@ function Man2({
   const scale = 2.25
   const rotationY = 0
 
-  // mobilePullback：移动端相机沿「焦点→相机」方向拉远的倍率（1 = 不变，1.2 = 远 20%）
-  // mobileTimelineShift：移动端「时间轴阶段」相机水平位移，单位=视距占比（正=左移，负=右移，0=关）
+  // mobilePullback: on mobile, how far the camera pulls back along the focus→camera direction (1 = unchanged, 1.2 = 20% farther)
+  // mobileTimelineShift: on mobile, horizontal camera shift during the timeline stage, as a fraction of view distance (positive = left, negative = right, 0 = off)
   const cam = {
     damping: 0.1,
     dwell: 0.35,
@@ -146,9 +147,9 @@ function Man2({
   }
 
   const get = useThree((s) => s.get)
-  const { scene, animations } = useGLTF(`${import.meta.env.BASE_URL}models/me.glb`)
+  const { scene, animations } = useGLTF(MODEL_URL)
 
-  // 克隆模型；收集眼睛对象、聚焦锚点对象、glb 自带相机、各锚点景深开关
+  // Clone the model; collect the eye objects, focus anchors, the glb's own camera, and each anchor's depth-of-field settings
   const { model, eyes, points, startPoint, glbCam, focusNode, dof } = useMemo(() => {
     const clone = scene.clone(true)
     const eyes: any[] = []
@@ -162,12 +163,12 @@ function Man2({
         o.receiveShadow = true
       }
       if (o.isCamera) glbCam = o
-      // 首页锚点：兼容旧名 focus-start 与 intro3d 统一命名 focus-0
+      // Hero anchor: accepts both the legacy name focus-start and intro3d's numbered focus-0
       if (o.name === 'focus-start' || o.name === 'focus-0') startPoint = o
       if (o.name === 'focus-works') focusNode = o
       if (POINTS.includes(o.name)) pmap[o.name] = o
       if (/eye/i.test(o.name)) {
-        // 平滑着色：重算平滑顶点法线 + 关闭 flatShading
+        // Smooth shading: recompute smooth vertex normals + turn off flatShading
         if (o.isMesh) {
           o.geometry.computeVertexNormals()
           const mats = Array.isArray(o.material) ? o.material : [o.material]
@@ -179,7 +180,7 @@ function Man2({
         eyes.push({ obj: o, base: o.quaternion.clone(), x: o.position.x })
       }
     })
-    // 按本地 x 定左右：最左眼 sx=-1、最右眼 sx=+1，用于斗鸡眼内转方向
+    // Decide left/right by local x: leftmost eye sx=-1, rightmost eye sx=+1, used for the cross-eye inward rotation
     if (eyes.length > 1) {
       const xs = eyes.map((e) => e.x)
       const min = Math.min(...xs)
@@ -192,12 +193,12 @@ function Man2({
       eyes.forEach((e) => (e.sx = 0))
     }
     const pts = POINTS.map((n) => pmap[n] || null)
-    // 作品区锚点：优先 focus-works（旧 glb）；缺省（intro3d 统一命名不导）则复用末时间轴节点 focus-M。
+    // Works anchor: prefer focus-works (older glbs); if absent (intro3d's numbered export omits it), reuse the last timeline node focus-M.
     const works = focusNode || pts[pts.length - 1] || null
-    // 首页锚点：focus-start / focus-0；都没有则回退首个时间轴节点。
+    // Hero anchor: focus-start / focus-0; if neither exists, fall back to the first timeline node.
     const start = startPoint || pts[0] || null
-    // 逐锚点景深参数（intro3d 导出写入 userData/extras）：dofBokeh 虚化强度、dofFocusRange 清晰范围、
-    // dofEnabled 开关（关→有效 bokeh 记 0）。has=false（老 glb 无这些字段）→ Post2 走原全局帧混合，行为不变。
+    // Per-anchor depth-of-field params (written to userData/extras by intro3d exports): dofBokeh blur strength, dofFocusRange sharp range,
+    // dofEnabled toggle (off → effective bokeh is 0). has=false (older glbs lack these fields) → Post2 uses the original global frame blend, behavior unchanged.
     const ud = (o: any): any => o?.userData ?? {}
     const hasDofParams = [...pts, start, works].some((o) => ud(o).dofBokeh !== undefined)
     const effBokeh = (o: any): number => (ud(o).dofEnabled === false ? 0 : (ud(o).dofBokeh ?? 0))
@@ -221,8 +222,8 @@ function Man2({
     }
   }, [scene])
 
-  // 相机动画总帧数：从 CameraAction clip 读（回退到最长 clip / 默认履历+入场+横移），不写死。
-  // 作品区帧段 = [RESUME_FRAMES, totalFrames]，长度随 glb 而定（当前 me.glb 为 100 帧）。
+  // Total camera-animation frames: read from the CameraAction clip (falling back to the longest clip / a default of résumé + entrance + pan), not hardcoded.
+  // Works frame segment = [RESUME_FRAMES, totalFrames]; its length depends on the glb (100 frames in the current me.glb).
   const totalFrames = useMemo(() => {
     const clips: any[] = animations || []
     const cam = clips.find((c: any) => c.name === 'CameraAction')
@@ -230,7 +231,7 @@ function Man2({
     return clip ? Math.round(clip.duration * FPS) : RESUME_FRAMES + 2 * WORKS_ENTRANCE
   }, [animations])
 
-  // 动画混合器：把全部 clip（manAction + CameraAction）都挂上，逐帧设 time + update(0) 擦除
+  // Animation mixer: attach every clip (manAction + CameraAction) and scrub each frame by setting time + update(0)
   const mixer = useMemo(() => new THREE.AnimationMixer(model), [model])
   const actions = useRef<any[]>([])
   useEffect(() => {
@@ -248,10 +249,10 @@ function Man2({
     }
   }, [mixer, animations])
 
-  // 不切换激活相机（避免后处理 CoC 缓存旧相机 near/far 导致整体糊）。
-  // 改为每帧把 glb 相机的世界变换 + fov 拷到默认相机上。
+  // Don't switch the active camera (post-processing's CoC would cache the old camera's near/far and blur everything).
+  // Instead, copy the glb camera's world transform + fov onto the default camera every frame.
 
-  // window 级鼠标输入（smouse 为缓动后的值）
+  // Window-level mouse input (smouse is the eased value)
   const mouse = useRef({ x: 0, y: 0 })
   const smouse = useRef({ x: 0, y: 0 })
   useEffect(() => {
@@ -263,20 +264,20 @@ function Man2({
     return () => window.removeEventListener('mousemove', onMove)
   }, [])
 
-  // 移动端 / 触屏（无鼠标可跟随）：关闭眼睛跟随，眼睛保持默认朝向。
-  // 判定 = 触屏指针 或 窄视口（≤640px，与移动端样式断点一致）。
+  // Mobile / touch screens (no mouse to follow): disable eye follow and keep the eyes at their default orientation.
+  // Detection = coarse (touch) pointer or a narrow viewport (≤640px, matching the mobile style breakpoint).
   const isMobile = useRef(
     typeof window !== 'undefined' &&
       (window.matchMedia?.('(pointer: coarse)').matches === true ||
         window.innerWidth <= 640)
   )
 
-  // 履历锚点 DOM 元素（决定当前播放到第几段）
+  // Résumé anchor DOM elements (decide which segment is currently playing)
   const anchorEls = useRef<any>(null)
-  // 作品区画廊 DOM 元素（决定作品入场 / 横移阶段的帧）
+  // Works gallery DOM element (decides the frame during the works entrance / pan stage)
   const galleryEl = useRef<any>(null)
 
-  // 复用对象，避免每帧分配
+  // Reused objects to avoid per-frame allocation
   const frameSmooth = useRef(0)
   const posA = useRef(new THREE.Vector3())
   const posB = useRef(new THREE.Vector3())
@@ -286,7 +287,7 @@ function Man2({
   const desiredQuat = useRef(new THREE.Quaternion())
   const tmpVec = useRef(new THREE.Vector3())
 
-  // 拷贝 glb 相机世界变换用
+  // For copying the glb camera's world transform
   const camPos = useRef(new THREE.Vector3())
   const camQuat = useRef(new THREE.Quaternion())
   const camScl = useRef(new THREE.Vector3())
@@ -296,14 +297,14 @@ function Man2({
   useFrame((_, dt) => {
     const a = 1 - Math.pow(cam.damping, dt)
 
-    // 1) 由履历锚点（文档坐标）算连续索引 s：
-    //    顶部 s≈-1，sysu 居中 s=0，hotsar=1 … zooop=4
+    // 1) Compute a continuous index s from the résumé anchors (document coordinates):
+    //    top s≈-1, first entry centered s=0, second = 1 … fifth = 4
     if (!anchorEls.current) {
       anchorEls.current = POINTS.map((n) => document.querySelector(`[data-point="${n}"]`))
     }
     const els = anchorEls.current
-    // 节点停顿：对每段滚动做停顿重映射——靠近某节点的一段滚动里 s 保持不变（停顿），
-    // 段中部快速过渡到下一节点。只改"滚动→s"的节奏，glb 动画仍是 s 的线性函数。
+    // Node dwell: remap each scroll segment with a pause — s stays constant for a stretch of scroll near each node (the dwell),
+    // then moves quickly to the next node mid-segment. Only the scroll→s pacing changes; the glb animation is still linear in s.
     const d = THREE.MathUtils.clamp(cam.dwell, 0, 0.49)
     const dwell = (t: number) => {
       if (d <= 0) return t
@@ -313,11 +314,11 @@ function Man2({
     }
     let sTarget = THREE.MathUtils.clamp(frameSmooth.current / FRAMES_PER_NODE - 1, -1, M - 1)
     if (els && els.length === M && els.every(Boolean)) {
-      // 参考线在视口 NODE_LINE 高度；锚点用条目顶部（文字位置，不含底部大 padding）
+      // The reference line is at viewport height NODE_LINE; anchors use the entry's top (the text position, excluding the large bottom padding)
       const refLine = window.scrollY + window.innerHeight * NODE_LINE
       const tops = els.map((el: any) => el.getBoundingClientRect().top + window.scrollY)
       if (refLine <= tops[0]) {
-        // 顶部 → sysu 的渐入段：scrollY=0 时 s=-1（第 0 帧），sysu 到达参考线时 s=0
+        // Top → first entry lead-in: s=-1 at scrollY=0 (frame 0), s=0 when the first entry reaches the reference line
         const heroScroll = Math.max(1, tops[0] - window.innerHeight * NODE_LINE)
         sTarget = -1 + dwell(THREE.MathUtils.clamp(window.scrollY / heroScroll, 0, 1))
       } else if (refLine >= tops[M - 1]) {
@@ -332,9 +333,9 @@ function Man2({
         }
       }
     }
-    // 2) 帧驱动：先算"目标帧"（履历/作品统一，交界处两侧都是 RESUME_FRAMES → 连续），
-    //    再对最终帧做一次缓动——避免之前"平滑 s + 直读 rectTop"两路径不一致导致的瞬跳。
-    //    履历区 0–RESUME_FRAMES（节点 i→(i+1)·50）；作品区 = 入场（屏幕滑入）+ 首板块横移，直到末帧
+    // 2) Frame drive: first compute a "target frame" (unified for résumé/works; both sides of the boundary are RESUME_FRAMES → continuous),
+    //    then ease the final frame once — avoids the jumps caused by the old inconsistent "smoothed s + raw rectTop" dual paths.
+    //    Résumé 0–RESUME_FRAMES (node i → (i+1)·50); works = entrance (screen slides in) + first-section pan, up to the last frame
     let frameTarget = THREE.MathUtils.clamp((sTarget + 1) * FRAMES_PER_NODE, 0, RESUME_FRAMES)
     let inWorks = false
     if (!galleryEl.current) galleryEl.current = document.querySelector('.wk-gallery')
@@ -344,28 +345,28 @@ function Man2({
       const range = Math.max(0, galleryEl.current.offsetHeight - ih)
       if (rectTop < ih) {
         inWorks = true
-        // 入场段结束帧（作品屏幕完全覆盖时）：履历末尾 + 入场帧数，钳到总帧
+        // Frame where the entrance ends (works screen fully covering): end of résumé + entrance frames, clamped to the total
         const entranceEnd = Math.min(RESUME_FRAMES + WORKS_ENTRANCE, totalFrames)
         if (rectTop > 0) {
-          // 作品屏幕从底部(rectTop=ih)滑到完全覆盖(rectTop=0)：入场帧段
+          // Works screen slides from the bottom (rectTop=ih) to fully covering (rectTop=0): the entrance segment
           const pA = THREE.MathUtils.clamp(1 - rectTop / ih, 0, 1)
           frameTarget = RESUME_FRAMES + (entranceEnd - RESUME_FRAMES) * pA
         } else {
-          // 已钉住，首板块水平移入（前一整屏 100vw 横移）：入场结束 → 末帧，之后定格末帧
-          // 竖滚与横移 1:1（px）；横移 100vw = innerWidth px
+          // Pinned; the first section pans in horizontally (the first full-screen 100vw pan): entrance end → last frame, then hold on the last frame
+          // Vertical scroll maps 1:1 to the pan (px); a 100vw pan = innerWidth px
           const scrolled = THREE.MathUtils.clamp(-rectTop, 0, range)
           const pB = THREE.MathUtils.clamp(scrolled / window.innerWidth, 0, 1)
           frameTarget = entranceEnd + (totalFrames - entranceEnd) * pB
         }
       }
     }
-    // 缓动程度随目标帧过渡：≤RESUME_FRAMES 正常平滑；入场段渐关；入场后 a=1（直接跟手、无 smooth）
+    // Easing varies with the target frame: normal smoothing ≤ RESUME_FRAMES; fades out during the entrance; after it a=1 (tracks input directly, no smoothing)
     const smoothOff = THREE.MathUtils.smoothstep(frameTarget, RESUME_FRAMES, RESUME_FRAMES + WORKS_ENTRANCE)
     const aEff = THREE.MathUtils.lerp(a, 1, smoothOff)
     frameSmooth.current += (frameTarget - frameSmooth.current) * aEff
     const frame = frameSmooth.current
-    // 所有 clip 共享时间轴：time = frame/FPS，各自钳到自身时长
-    // （较短的 clip 播完后保持末帧，相机 clip CameraAction 走满 totalFrames）
+    // All clips share one timeline: time = frame/FPS, each clamped to its own duration
+    // (shorter clips hold their last frame once finished; the CameraAction camera clip runs the full totalFrames)
     if (actions.current.length) {
       const t = frame / FPS
       for (const { action: act, duration } of actions.current) {
@@ -375,11 +376,11 @@ function Man2({
     }
     if (frameRef) frameRef.current = frame
 
-    // 履历段用于对焦的连续索引：由平滑后的帧反推，确保对焦与镜头同步
+    // Continuous index used for focus in the résumé section: derived back from the smoothed frame so focus stays in sync with the camera
     const s = THREE.MathUtils.clamp(frame / FRAMES_PER_NODE - 1, -1, M - 1)
 
-    // 3) 自动对焦：作品区跟随 glb focus-works 空对象；履历区按 focus 锚点插值
-    //    （在 mixer.update 之后取世界坐标，保证与当前帧一致）
+    // 3) Auto-focus: in works, follow the glb focus-works empty; in the résumé, interpolate between focus anchors
+    //    (read world positions after mixer.update so they match the current frame)
     if (focusRef) {
       if (inWorks && focusNode) {
         focusNode.getWorldPosition(focusRef.current)
@@ -400,8 +401,8 @@ function Man2({
       }
     }
 
-    // 3b) 景深：glb 带逐锚点参数（intro3d 导出）时，沿当前连续索引在相邻锚点间插值 bokeh/focusRange，
-    //     写入 refs 供 Post2 直接采用（忠实还原 intro3d）；无参数（老 glb）则写哨兵 -1 → Post2 走原全局帧混合。
+    // 3b) Depth of field: when the glb carries per-anchor params (intro3d export), interpolate bokeh/focusRange between neighboring anchors along the current index,
+    //     writing them to refs for Post2 to use directly (faithful to intro3d); without params (older glbs) write the sentinel -1 → Post2 uses the original global frame blend.
     if (dofBokehRef && dofRangeRef) {
       if (!dof.has) {
         dofBokehRef.current = -1
@@ -415,39 +416,39 @@ function Man2({
           return THREE.MathUtils.lerp(arr[iA] ?? 0, arr[iB] ?? 0, sc - iA)
         }
         dofBokehRef.current = sample(dof.bokeh, dof.startBokeh, dof.worksBokeh)
-        // focusRange 按模型 group 缩放折算到世界单位（scene 被放大 scale 倍，清晰范围需同比放大才与 intro3d 观感一致）。
+        // Convert focusRange to world units by the model group's scale (the scene is scaled up by `scale`, so the sharp range must scale too to match intro3d's look).
         dofRangeRef.current = sample(dof.range, dof.startRange, dof.worksRange) * scale
       }
     }
 
-    // 2b) 拷贝 glb 相机世界变换到默认相机，并绕焦点做轨道式鼠标视差（焦点屏幕位置不变）
+    // 2b) Copy the glb camera's world transform to the default camera and add orbit-style mouse parallax around the focus point (the focus stays fixed on screen)
     const camera: any = get().camera
     if (glbCam && camera.isPerspectiveCamera) {
       glbCam.updateWorldMatrix(true, false)
       glbCam.matrixWorld.decompose(camPos.current, camQuat.current, camScl.current)
-      // 鼠标缓动：无限趋近目标值
+      // Mouse easing: asymptotically approach the target
       const me = 1 - Math.pow(cam.parallaxEase, dt)
       smouse.current.x += (mouse.current.x - smouse.current.x) * me
       smouse.current.y += (mouse.current.y - smouse.current.y) * me
       const ax = THREE.MathUtils.degToRad(cam.parallax)
       paraEuler.current.set(-smouse.current.y * ax, -smouse.current.x * ax, 0)
       paraQuat.current.setFromEuler(paraEuler.current)
-      // 绕焦点旋转相机位置 + 同步旋转朝向 → 焦点不动，仅四周产生视差
+      // Rotate the camera position around the focus + rotate its orientation to match → the focus stays put and only the surroundings show parallax
       tmpVec.current
         .copy(camPos.current)
         .sub(focusRef.current)
         .applyQuaternion(paraQuat.current)
-      // 移动端沿「焦点→相机」方向整体拉远：焦点屏幕位置不变，主体更小、留白更多
+      // On mobile, pull back along the focus→camera direction: the focus stays in place on screen, the subject gets smaller with more breathing room
       if (isMobile.current) tmpVec.current.multiplyScalar(cam.mobilePullback)
       tmpVec.current.add(focusRef.current)
       camera.position.copy(tmpVec.current)
       camera.quaternion.multiplyQuaternions(paraQuat.current, camQuat.current)
-      // 移动端「时间轴阶段」把镜头整体左移，让主体从满宽文字后错开。
-      // 权重：从 Hero 渐入(s: -0.8→0.3)、进入作品区随 smoothOff 渐出 → 无跳变。
+      // On mobile during the timeline stage, shift the whole shot left so the subject is offset from the full-width text.
+      // Weight: fades in from the hero (s: -0.8→0.3) and fades out with smoothOff on entering works → no jumps.
       if (isMobile.current && cam.mobileTimelineShift !== 0) {
         const tlWeight = THREE.MathUtils.smoothstep(s, -0.8, 0.3) * (1 - smoothOff)
         if (tlWeight > 0) {
-          // translateX 沿局部 +X（屏幕右）；取负 → 相机左移
+          // translateX moves along local +X (screen right); negate → camera moves left
           const dist = camera.position.distanceTo(focusRef.current)
           camera.translateX(-dist * cam.mobileTimelineShift * tlWeight)
         }
@@ -458,7 +459,7 @@ function Man2({
       }
     }
 
-    // 4) 眼睛跟随（用当前激活相机做屏幕投影）；移动端 / 触屏则跳过
+    // 4) Eye follow (project to screen with the active camera); skipped on mobile / touch
     if (!eye.enabled || eyes.length === 0 || isMobile.current) return
     const sx = eye.invertX ? -1 : 1
     const sy = eye.invertY ? -1 : 1
@@ -502,8 +503,8 @@ function Man2({
   )
 }
 
-// 后处理：DepthOfField → Bloom → SMAA。
-// DoF 焦点逐帧跟随 focusRef（自动对焦）；30–220 帧间收紧清晰范围、加大虚化。
+// Post-processing: DepthOfField → Bloom → SMAA.
+// The DoF target follows focusRef every frame (auto-focus); between the start and end blend frames the sharp range tightens and blur increases.
 function Post2({
   focusRef,
   frameRef,
@@ -524,7 +525,7 @@ function Post2({
     focusBokeh: 11.0,
     focusRange: 0.15,
     startBlendFrame: 48,
-    endBlendFrame: RESUME_FRAMES - 50, // 末节点附近回到"起始帧"景深档（原 250−50=200）
+    endBlendFrame: RESUME_FRAMES - 50, // return to the "start frame" DoF preset near the last node (originally 250−50=200)
   }
 
   const dofRef = useRef<any>(null)
@@ -532,18 +533,18 @@ function Post2({
     const e = dofRef.current
     if (!e) return
     if (e.target && focusRef) e.target.copy(focusRef.current)
-    // 权重 w=1 用"开始帧档"，w=0 用"聚焦点档"。
-    // 开头(f→0)和末节点(f→RESUME_FRAMES)都取开始帧档；中间各节点取聚焦点档。
+    // Weight w=1 uses the "start frame preset", w=0 uses the "focus preset".
+    // The beginning (f→0) and the last node (f→RESUME_FRAMES) use the start preset; the nodes in between use the focus preset.
     const f = frameRef ? frameRef.current : 0
     const wStart = 1 - THREE.MathUtils.smoothstep(f, 0, post.startBlendFrame)
     const wEnd = THREE.MathUtils.smoothstep(f, post.endBlendFrame, RESUME_FRAMES)
     const w = Math.max(wStart, wEnd)
     if (dofBokehRef && dofBokehRef.current >= 0) {
-      // glb 自带逐锚点景深参数（intro3d 导出）：直接采用，忠实还原 intro3d 的虚化强度/清晰范围（bokeh=0 即该点关景深）。
+      // The glb carries per-anchor DoF params (intro3d export): use them directly to faithfully reproduce intro3d's blur strength / sharp range (bokeh=0 means DoF is off at that point).
       e.bokehScale = dofBokehRef.current
       if (e.cocMaterial) e.cocMaterial.focusRange = Math.max(1e-4, dofRangeRef ? dofRangeRef.current : post.focusRange)
     } else {
-      // 老 glb（无逐锚点参数）：沿用原全局帧混合档位。
+      // Older glbs (no per-anchor params): keep the original global frame-blend presets.
       e.bokehScale = THREE.MathUtils.lerp(post.focusBokeh, post.startBokeh, w)
       if (e.cocMaterial) e.cocMaterial.focusRange = THREE.MathUtils.lerp(post.focusRange, post.startRange, w)
     }
@@ -571,11 +572,11 @@ function Post2({
   )
 }
 
-// 场景根组件：展示 me.glb（相机由 glb 动画 + 滚动驱动）
+// Scene root: shows me.glb (camera driven by the glb animation + scroll)
 export default function Scene() {
   const focusRef = useRef(new THREE.Vector3(0, 1.3, 0))
   const frameRef = useRef(0)
-  // 逐锚点景深（intro3d 导出的 glb 携带）：Man2 每帧写、Post2 读。dofBokeh=-1 表示无参数 → Post2 走旧全局混合。
+  // Per-anchor DoF (carried by intro3d-exported glbs): Man2 writes every frame, Post2 reads. dofBokeh=-1 means no params → Post2 uses the old global blend.
   const dofBokehRef = useRef(-1)
   const dofRangeRef = useRef(0.15)
   return (

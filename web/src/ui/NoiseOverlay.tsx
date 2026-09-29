@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, invalidate, useFrame } from '@react-three/fiber'
 import { DoubleSide, Vector2 } from 'three'
 
-// 全屏胶片噪点蒙层（移植自 speakio 首页）：独立 Canvas + multiply 混合，
-// frameloop="demand" 节流到 ~0.8fps，几乎不占性能。
+// Full-screen film-grain overlay (ported from the speakio homepage): a separate Canvas + multiply blend,
+// frameloop="demand" throttled to ~0.8fps, so it costs almost nothing.
 const CONFIG = { zIndex: 100, opacity: 0.5, alpha: 1 }
 const SHADER_VERSION = 'noise-v1'
 const num = (v: number) => v.toFixed(3)
@@ -70,7 +70,7 @@ function NoisePlane() {
     materialRef.current.uniforms.uResolution.value = resolution
   })
 
-  // demand 模式：定时 invalidate 触发重绘，得到缓慢闪动的颗粒
+  // demand mode: invalidate on a timer to trigger redraws, producing slowly flickering grain
   useEffect(() => {
     const interval = setInterval(() => invalidate(), 1000 / frameRate)
     return () => clearInterval(interval)
@@ -100,7 +100,7 @@ function NoisePlane() {
 }
 
 export default function NoiseOverlay() {
-  // 仅客户端挂载，避免 SSR 不一致（此项目纯 CSR，仍保持一致写法）
+  // Mount client-side only to avoid SSR mismatches (this project is pure CSR, but keeps the pattern consistent)
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   if (!mounted) return null

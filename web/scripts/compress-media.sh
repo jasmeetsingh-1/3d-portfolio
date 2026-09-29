@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# 压缩 public 下的图片/视频（原地）。规则：
-#  - 最大宽度 1920，超出等比缩小（不放大）
-#  - 视频 H.264 ~2Mbps，faststart，音频 aac 128k
-#  - 图片：jpg q=4 / webp q=80 / png 最大压缩 / gif 调色板重编码
-# 仅当输出成功且更小才覆盖原文件；否则保留原文件。保持文件名与扩展名不变。
+# Compress the images/videos under public (in place). Rules:
+#  - max width 1920; larger files are scaled down proportionally (never up)
+#  - video H.264 ~2Mbps, faststart, audio aac 128k
+#  - images: jpg q=4 / webp q=80 / png max compression / gif palette re-encode
+# Only overwrite the original when the output succeeded and is smaller; otherwise keep the original. File names and extensions stay the same.
 set -u
 DIRS=("public/works" "public/images")
 LOG="scripts/compress-media.log"
 : > "$LOG"
 
-# 视频缩放：宽取 min(1920,iw) 并向下取偶；高 -2 自动偶数
+# Video scaling: width = min(1920,iw) rounded down to even; height -2 = auto even
 VSCALE="scale=w='trunc(min(1920\,iw)/2)*2':h=-2:flags=lanczos"
 ISCALE="scale=w='min(1920\,iw)':h=-2:flags=lanczos"
 
@@ -39,14 +39,14 @@ process() {
   esac
   rc=$?
   if [ $rc -ne 0 ] || [ ! -s "$tmp" ]; then
-    rm -f "$tmp"; echo "FAIL  $f (rc=$rc，保留原文件)" | tee -a "$LOG"; return
+    rm -f "$tmp"; echo "FAIL  $f (rc=$rc, keeping the original)" | tee -a "$LOG"; return
   fi
   after=$(sizeof "$tmp")
   if [ "$after" -lt "$before" ]; then
     mv -f "$tmp" "$f"
     echo "OK    $f  $(numfmt --to=iec $before 2>/dev/null || echo ${before}B) -> $(numfmt --to=iec $after 2>/dev/null || echo ${after}B)" | tee -a "$LOG"
   else
-    rm -f "$tmp"; echo "SKIP  $f（压后未更小，保留原文件）" | tee -a "$LOG"
+    rm -f "$tmp"; echo "SKIP  $f (not smaller after compression, keeping the original)" | tee -a "$LOG"
   fi
 }
 

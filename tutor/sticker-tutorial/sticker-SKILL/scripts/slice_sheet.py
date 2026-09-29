@@ -132,7 +132,7 @@ def group_by_slot(comps: list[Component], rows: int, cols: int, w: int, h: int) 
     slots: dict[int, list[Component]] = {}
     slot_of: dict[int, int] = {}
     if len(mains) == total:
-        # 主体数恰好 rows×cols → 排序分箱（按 y 切行、行内按 x 排），对「宫格排版不严格对齐」免疫。
+        # Exactly rows×cols bodies → sort-bin (split rows by y, order by x within a row); robust to a loosely aligned grid.
         by_y = sorted(mains, key=lambda c: c.centroid[1])
         for row in range(rows):
             row_comps = sorted(by_y[row * cols : (row + 1) * cols], key=lambda c: c.centroid[0])
@@ -141,7 +141,7 @@ def group_by_slot(comps: list[Component], rows: int, cols: int, w: int, h: int) 
                 slots[slot] = [c]
                 slot_of[c.label] = slot
     else:
-        # 数量不符（有贴纸缺失/粘连）→ 退回质心落格。
+        # Count mismatch (a sticker is missing or merged) → fall back to centroid binning.
         print(f"warn: {len(mains)} mains != {total}, falling back to centroid binning", file=sys.stderr)
         for c in mains:
             cx, cy = c.centroid
@@ -228,7 +228,7 @@ def checkerboard(w: int, h: int, step: int = 16) -> Image.Image:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("sheet", type=Path)
-    ap.add_argument("--grid", default="4", help="N（N×N）或 ROWSxCOLS（如 3x4=3 行 4 列，默认 4）")
+    ap.add_argument("--grid", default="4", help="N (N×N) or ROWSxCOLS (e.g. 3x4 = 3 rows, 4 cols; default 4)")
     ap.add_argument("--out", type=Path, required=True, help="output directory")
     ap.add_argument("--names", type=Path, help="one name per line, row-major")
     ap.add_argument("--size", type=int, default=512, help="max long edge (default 512)")
@@ -239,7 +239,7 @@ def main() -> int:
     args = ap.parse_args()
 
     sheet = Image.open(args.sheet)
-    # 宫格尺寸："4" → 4×4；"3x4" → 3 行 4 列。
+    # Grid size: "4" → 4×4; "3x4" → 3 rows, 4 cols.
     if "x" in str(args.grid):
         rows, cols = (int(v) for v in str(args.grid).lower().split("x"))
     else:

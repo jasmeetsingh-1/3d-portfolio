@@ -1,43 +1,45 @@
 ---
-title: 示例作品 · Example Work
+title: Example Work
 banner: /works/example/banner.jpg
 year: 2026
-role: 设计 / 开发
-tags: [互动项目, 示例标签]
+role: Design / Development
+tags: [Interactive, Example Tag]
 link: https://example.com
 ---
 
-> **这是一个作品详情模板。** 把本文件复制成 `src/content/works/<slug>.md`，其中
-> `<slug>` 要与 `src/data/works.js` 里某个作品 item 的 `slug` 一致，该作品点开后就会
-> 渲染成完整详情；否则详情页显示统一占位。本文件 slug 为 `example`，不对应任何作品，
-> 因此不会出现在线上——仅作参考。
+> **This is an optional markdown fallback for a work detail.** The normal place for work
+> details is `workDetails` in `content-plan/content.json`. A file at `src/content/works/<slug>.md`
+> is used only when content.json has no entry for that `slug` (the `slug` of a work item under
+> `works.sections` in content.json). Otherwise the detail shows the shared placeholder.
+> This file's slug is `example`, which matches no work, so it never shows up on the live
+> site — it's for reference only.
 
-## 小标题
+## Subheading
 
-正文支持标准 Markdown：**加粗**、*斜体*、[外链](https://example.com)，以及列表：
+The body supports standard Markdown: **bold**, *italic*, [external links](https://example.com), and lists:
 
-- 要点一
-- 要点二
-- 要点三
+- Point one
+- Point two
+- Point three
 
-## 图片与视频
+## Images and video
 
-媒体放在 `public/works/<slug>/` 下，用 `/works/...` 绝对路径引用（`public/works/` 默认
-不入 git，见 `.gitignore`）：
+Put media in `public/works/<slug>/` and reference it with `/works/...` absolute paths
+(`public/works/` is not tracked by git by default, see `.gitignore`):
 
-![示例配图](/works/example/1.jpg)
+![Example image](/works/example/1.jpg)
 
 <video src="/works/example/demo.mp4" autoplay muted loop playsinline></video>
 
 ---
 
-frontmatter 可用字段（均可选）：
+Available frontmatter fields (all optional):
 
-| 字段 | 说明 |
+| Field | Description |
 | --- | --- |
-| `title` | 详情标题（缺省回退 works.js 里的作品名） |
-| `banner` | 顶部 banner 图路径（缺省用渐变占位） |
-| `year` | 年份 |
-| `role` | 角色 / 担当 |
-| `tags` | 标签数组，如 `[互动项目, 虎啸奖]` |
-| `link` | 外链，渲染成「访问作品」按钮 |
+| `title` | Detail title (falls back to the work's name in content.json) |
+| `banner` | Top banner image path (defaults to a gradient placeholder) |
+| `year` | Year |
+| `role` | Role / responsibility |
+| `tags` | Tag array, e.g. `[Interactive, Tiger Roar Award]` |
+| `link` | External link, rendered as the "Visit site" button |

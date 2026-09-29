@@ -21,9 +21,9 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
-      // 场景里命令式 Three.js（traverse / glb 对象 / DOM 引用）故意用 any，不作报错
+      // The imperative Three.js in the scene (traverse / glb objects / DOM refs) uses any on purpose; not an error
       '@typescript-eslint/no-explicit-any': 'off',
-      // 未使用变量降级为警告；忽略 _ 前缀
+      // Unused variables are downgraded to warnings; _-prefixed ones are ignored
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

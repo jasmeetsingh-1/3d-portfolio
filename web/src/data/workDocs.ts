@@ -1,16 +1,19 @@
-// 作品详情内容规范：每个作品一个 markdown 文件，放在 src/content/works/<slug>.md
+// Work details come from `workDetails` in content-plan/content.json (matched by slug).
+// Optional fallback: a markdown file at src/content/works/<slug>.md, used only when content.json has no entry for that slug.
 //
-// frontmatter（--- 之间）字段（均可选）：
-//   title   标题（缺省回退列表里的作品名）
-//   banner  顶部 banner 图路径（如 /works/guqin/banner.jpg；缺省用渐变占位）
-//   year    年份
-//   role    角色 / 担当
-//   tags    标签数组：[互动项目, 虎啸奖]
-//   link    外链（“访问作品”按钮）
-// 正文（frontmatter 之后）写 markdown：文字 / 图 ![](...) / 视频 <video src=...>。
+// md frontmatter fields (between ---), all optional:
+//   title   title (falls back to the work's name in the list)
+//   banner  top banner image path (e.g. /works/guqin/banner.jpg; defaults to a gradient placeholder)
+//   year    year
+//   role    role / responsibility
+//   tags    tag array: [Interactive, Tiger Roar Award]
+//   link    external link (the "Visit site" button)
+// The body (after the frontmatter) is markdown: text / images ![](...) / video <video src=...>.
 //
-// 资源（图/视频）放到 public/works/ 下，用 /works/... 绝对路径引用。
-// 列表（works.ts 的 item）通过 `slug` 关联到此处的 md；没有 slug 的 item 仍走占位详情。
+// Media (images/videos) go under public/works/ and are referenced with /works/... absolute paths.
+// Work items (works.sections[].items in content.json) link to a detail via `slug`; items without one use the placeholder detail.
+
+import { content } from '../content'
 
 export interface WorkDoc {
   slug: string
@@ -20,17 +23,17 @@ export interface WorkDoc {
   role?: string
   tags?: string[]
   link?: string
-  body: string
+  body?: string
 }
 
-// 构建期把全部 md 作为原始字符串内联进来
+// Inline every md file as a raw string at build time
 const files = import.meta.glob('../content/works/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>
 
-// 极简 frontmatter 解析（key: value，数组用 [a, b]）——避免引入依赖 Buffer 的库
+// Minimal frontmatter parser (key: value, arrays as [a, b]) — avoids pulling in a library that depends on Buffer
 function parseFrontmatter(raw: string): {
   data: Record<string, string | string[]>
   body: string
@@ -62,6 +65,10 @@ for (const path in files) {
   const slug = path.split('/').pop()!.replace(/\.md$/, '')
   const { data, body } = parseFrontmatter(files[path])
   docs[slug] = { slug, ...data, body } as WorkDoc
+}
+
+for (const d of content.workDetails ?? []) {
+  if (d.slug) docs[d.slug] = d
 }
 
 export function getWorkDoc(slug?: string): WorkDoc | null {

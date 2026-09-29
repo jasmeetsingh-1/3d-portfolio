@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 
-// 全站交互状态：当前展开的领域 / 悬停的领域 / 是否已进入
+// Site-wide interaction state: the expanded domain / the hovered domain / whether the intro has been passed
 interface StoreState {
-  active: string | null // 当前展开的 domain id（null = 总览）
-  hovered: string | null // 悬停的 domain id
-  entered: boolean // 是否已通过入场
+  active: string | null // id of the currently expanded domain (null = overview)
+  hovered: string | null // id of the hovered domain
+  entered: boolean // whether the entrance has been passed
   setActive: (id: string | null) => void
   setHovered: (id: string | null) => void
   enter: () => void
@@ -19,7 +19,7 @@ export const useStore = create<StoreState>((set) => ({
   enter: () => set({ entered: true }),
 }))
 
-// 开发期调试钩子：可在 console 用 __store.getState().setActive('ads')
+// Dev-only debug hook: use __store.getState().setActive('ads') in the console
 declare global {
   interface Window {
     __store?: typeof useStore

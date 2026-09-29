@@ -3,8 +3,8 @@ import { useThree, useLoader } from '@react-three/fiber'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import * as THREE from 'three'
 
-// env.hdr 作为光照 / 反射环境（IBL），并可选作为可见背景（替代 Sky.jsx 天空球）。
-// three r163+ 原生支持 scene.environmentRotation / scene.backgroundRotation。
+// env.hdr as the lighting / reflection environment (IBL), optionally also as the visible background (replacing the Sky.jsx sky sphere).
+// three r163+ natively supports scene.environmentRotation / scene.backgroundRotation.
 export default function Env({
   intensity,
   rotationX,
@@ -25,13 +25,13 @@ export default function Env({
   const scene = useThree((s) => s.scene)
   const texture = useLoader(RGBELoader, `${import.meta.env.BASE_URL}textures/env.hdr`)
 
-  // 记录接管前的背景（App.jsx 里设的深色），关闭 asBackground 时恢复。
+  // Remember the background from before we took over (the dark color set in App.tsx) and restore it when asBackground is turned off.
   const initialBg = useRef<any>(null)
   useEffect(() => {
     initialBg.current = scene.background
   }, [scene])
 
-  // 作为光照/反射环境
+  // As the lighting/reflection environment
   useEffect(() => {
     texture.mapping = THREE.EquirectangularReflectionMapping
     scene.environment = texture
@@ -44,7 +44,7 @@ export default function Env({
     scene.environmentIntensity = intensity
   }, [scene, intensity])
 
-  // 旋转：同一组欧拉角(度→弧度)同时驱动环境反射与背景朝向
+  // Rotation: one set of Euler angles (degrees → radians) drives both the environment reflection and the background orientation
   useEffect(() => {
     const x = THREE.MathUtils.degToRad(rotationX)
     const y = THREE.MathUtils.degToRad(rotationY)
@@ -53,7 +53,7 @@ export default function Env({
     scene.backgroundRotation.set(x, y, z)
   }, [scene, rotationX, rotationY, rotationZ])
 
-  // 作为可见背景
+  // As the visible background
   useEffect(() => {
     scene.background = asBackground ? texture : initialBg.current
     return () => {
@@ -61,8 +61,8 @@ export default function Env({
     }
   }, [scene, texture, asBackground])
 
-  // 背景曝光控制：backgroundIntensity 只缩放背景显示亮度，不影响场景受光；
-  // backgroundBlurriness 柔化背景、削弱刺眼高光。
+  // Background exposure: backgroundIntensity only scales how bright the background looks, not the scene lighting;
+  // backgroundBlurriness softens the background and tames harsh highlights.
   useEffect(() => {
     scene.backgroundIntensity = bgIntensity
     scene.backgroundBlurriness = bgBlur

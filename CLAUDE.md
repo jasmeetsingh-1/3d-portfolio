@@ -30,7 +30,7 @@ No tests. Linting is `npm run lint` (lightweight ESLint, `no-explicit-any` disab
 
 - **Pure front-end SPA**: `index.html` → `src/main.tsx` → `src/App.tsx` (one fixed `<Canvas>` 3D background + a scrollable HTML overlay). No backend, no router.
 - **3D background**: `src/scene/Scene.tsx` — loads `public/models/me.glb` and, using the glb's own camera animation, wipes through it in 5 scroll-driven segments, layering auto-focus depth-of-field and eye-follows-cursor on top. Lighting comes from `src/scene/Env.tsx` (`public/textures/env.hdr` as IBL).
-- **Scroll content**: `Hero` in `App.tsx` (About copy lives in `COPY`) → `src/ui/Resume.tsx` (résumé timeline) → `src/ui/Works.tsx` (works gallery + detail modal).
+- **Scroll content**: `Hero` in `App.tsx` → `src/ui/Resume.tsx` (résumé timeline) → `src/ui/Works.tsx` (works gallery + detail modal). None of them hold content — see "Content system" below.
 - **Overlays**: `LoadingScreen` (masks the screen until the model finishes loading), `NoiseOverlay` (film grain), scroll-darken / frosted right rail / hero decorative frame (all in `App.tsx`).
 - **Global state**: `src/store.ts` (zustand, lightweight).
 
@@ -42,12 +42,14 @@ This project is TypeScript (`strict` on). `App` / `ui` / `data` / `store` are fu
 
 Every tunable in the scene (lights, camera, depth-of-field, Bloom, character position, background gradient, etc.) is a **plain constant** at the top of the relevant component in `Scene.tsx` (e.g. `const cam = { damping: 0.1, ... }`, `const top = '#6f906f'`). To change the default look, edit those constant values directly — there is no tweak panel or extra config file.
 
-## Works content system (look here to change content)
+## Content system (look here to change content)
 
-- **List**: `src/data/works.ts` — section / work titles, meta, tags, external links, and cover mapping (`SECTION_COVERS`). Pure data; `Works.tsx` only renders it.
-- **Detail**: one `src/content/works/<slug>.md` per work (frontmatter + markdown, spec in `src/data/workDocs.ts`), linked via the `slug` on each item in works.ts.
-  - **This repo ships without concrete work details**: `content/works/` has only an `example.md` template (its slug matches no work, so it never renders); opening a detail falls back to a **shared placeholder** (intro text + image/video placeholder + empty jump button, copy in `works.ts`'s `detailPlaceholder / phImageLabel / phButtonLabel`). Drop in a `<slug>.md` following `example.md` to render a full detail.
-- **Media**: put images / videos in `public/works/<slug>/` and reference them from the md with `/works/...` absolute paths. `public/works/` is gitignored by default (only the 4 section `covers/` are kept), see `.gitignore`.
+- **Single source of truth**: every piece of site content — tab title, hero copy and corner labels, social links, résumé entries, works sections/items, UI labels, work details, the model file path and its focus points — lives in **`content-plan/content.json` at the repo root** (outside `web/`). Never hardcode content in components; add a field to the JSON instead.
+- **Loader**: `src/content.ts` imports the JSON, declares its TypeScript types (`SiteContent`), exports `FOCUS_POINTS` / `FRAMES_PER_NODE`, and provides `asset(path)` (resolves JSON paths, which are relative to `web/public/`, against `BASE_URL`) and `nonEmpty(list)`. Components read `content.*` directly; empty strings/arrays hide their element.
+- **Tab title**: injected into `index.html` at build/dev time by the `contentTitle` plugin in `vite.config.ts` (which imports the JSON too, so editing it restarts the dev server).
+- **JSON conventions**: keys starting with `_` (`_readme`, `_fileMap`, `_aiGuide`, `_assetChecklist`, `_legal`, `model._*`) are documentation only and ignored by the site. `_aiGuide` documents every field — keep it in sync when adding/removing fields, and update `SiteContent` in `src/content.ts`.
+- **Work details**: `workDetails[]` in the JSON (markdown `body` string), matched to items by `slug` in `src/data/workDocs.ts`. A `src/content/works/<slug>.md` file (see `example.md`) is only a fallback when the JSON has no entry for that slug. Items without a detail open a shared placeholder built from `works.uiLabels`.
+- **Media**: put images / videos under `public/` (e.g. `public/works/<slug>/`) and reference them from the JSON or markdown with paths like `/works/...`; markdown URLs are rebased onto `BASE_URL` too. `public/works/` is gitignored by default (only `covers/` is kept), see `.gitignore`.
 
 ## Rendering pipeline notes
 
@@ -60,10 +62,10 @@ Every tunable in the scene (lights, camera, depth-of-field, Bloom, character pos
 - Swap the 3D character: replace `public/models/me.glb` (its source is `blender/sen.blend` at the repo root — edit it in Blender and export the glb), or rewrite `Scene.tsx` to use your own scene. The code looks these up in the glb **by object name**; whatever is missing, that feature breaks:
   - **Camera + camera-animation clip named `CameraAction`** — the scroll-driven camera path (played by wiping frame-by-frame through `useGLTF`'s `animations`). Its total frame count is read at runtime (24fps), not hardcoded.
   - **`focus-start`** (or `focus-0`) — the hero's starting focus anchor (an empty); both names are accepted.
-  - **The timeline focus anchors** (empties) — one per résumé entry, listed in order in **`src/data/focusPoints.ts`** (`FOCUS_POINTS`, the single source of truth shared by `Scene.tsx` and `Resume.tsx`). The count is dynamic: change the list + `Resume.tsx`'s entries together and everything (node count, frame ranges) adapts. This repo ships `focus-1 / focus-2 / focus-3 / focus-4 / focus-5` (the hero anchor uses `focus-0`).
+  - **The timeline focus anchors** (empties) — one per résumé entry, listed in order in **`model.focusPoints` in `content-plan/content.json`** (exported as `FOCUS_POINTS` from `src/content.ts`, shared by `Scene.tsx` and `Resume.tsx`). The count is dynamic: change the list + `resume.entries` together and everything (node count, frame ranges) adapts. The bundled `me.glb` has `focus-1 … focus-5` (the hero anchor uses `focus-0`). The model file itself is `model.glbPath`.
   - **`focus-works`** — the works-section focus anchor (an empty); optional — if absent, the works section reuses the last timeline anchor.
   - **A mesh whose name contains `eye`** — the eyes, used for eye-follows-cursor.
   - (Note: wind sway was removed, so a mesh named `man` is no longer needed.)
-  - **Camera frame convention** (for authoring the `CameraAction` clip): frame `0` = hero (`focus-start`); frame `50·k` = the k-th timeline node; the **last frame** = works (`focus-works`). So each node is 50 frames apart, and the tail from the last node to the last frame is the works segment (any length).
-- Edit the résumé in `src/ui/Resume.tsx`; works in `src/data/works.ts` + `src/content/works/*.md`; About in `App.tsx`'s `COPY`.
+  - **Camera frame convention** (for authoring the `CameraAction` clip): frame `0` = hero (`focus-start`); frame `50·k` = the k-th timeline node (50 = `model.framesPerNode`); the **last frame** = works (`focus-works`). So each node is 50 frames apart, and the tail from the last node to the last frame is the works segment (any length).
+- Edit all content (About, résumé, works, work details, labels, links) in `content-plan/content.json`.
 - Personal content / assets / the character model are copyright of the original author and **not covered by MIT** (see `NOTICE`) — after forking, be sure to replace them with your own.

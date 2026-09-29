@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import { WORKS, SECTION_COVERS, type WorkListItem, type WorkSection, type WorksLang } from '../data/works'
+import { content, asset, nonEmpty, type WorkItem, type WorkSection, type WorksLabels } from '../content'
 import { getWorkDoc } from '../data/workDocs'
 
 const EASE = [0.22, 1, 0.36, 1]
 
-// 极简清单的一行：作品名靠左、数据(播放量/标签)靠右、发丝线分隔；整行可点开全屏详情
-function WorkLine({ item, onOpen }: { item: WorkListItem; onOpen: (item: WorkListItem) => void }) {
+// Root-relative URLs in markdown (/works/...) resolve against the deploy base, so they also work from a subdirectory.
+const mdUrl = (url: string) => (url.startsWith('/') && !url.startsWith('//') ? asset(url)! : defaultUrlTransform(url))
+
+// One row of the minimal list: work name on the left, stats (views/tags) on the right, hairline separators; the whole row opens the full-screen detail
+function WorkLine({ item, onOpen }: { item: WorkItem; onOpen: (item: WorkItem) => void }) {
   const hasMeta = item.meta || (item.tags && item.tags.length)
   return (
     <li className="wk-line">
@@ -31,18 +34,18 @@ function WorkLine({ item, onOpen }: { item: WorkListItem; onOpen: (item: WorkLis
   )
 }
 
-// 一张全高板块卡：左侧整高配图，右侧文字（编号 + 标题 + 清单）
+// A full-height section card: full-height image on the left, text on the right (number + title + list)
 function SectionCard({
   section,
   data,
   onOpen,
 }: {
   section: WorkSection
-  data: WorksLang
-  onOpen: (item: WorkListItem) => void
+  data: WorksLabels
+  onOpen: (item: WorkItem) => void
 }) {
   const [coverError, setCoverError] = useState(false)
-  const cover = SECTION_COVERS[section.id]
+  const cover = asset(section.coverImage)
   return (
     <div className="wk-card">
       <div className="wk-card-head">
@@ -64,19 +67,19 @@ function SectionCard({
   )
 }
 
-// 板块内的作品清单（items 扁平 / groups 分组 / awards · footer 底部小字）
+// A section's work list (flat items / grouped groups / awards · footer small print)
 function SectionWorks({
   section,
   data,
   onOpen,
 }: {
   section: WorkSection
-  data: WorksLang
-  onOpen: (item: WorkListItem) => void
+  data: WorksLabels
+  onOpen: (item: WorkItem) => void
 }) {
   return (
     <div className="wk-card-body">
-      {section.items && (
+      {nonEmpty(section.items) && (
         <ul className="wk-list">
           {section.items.map((it, i) => (
             <WorkLine key={i} item={it} onOpen={onOpen} />
@@ -84,23 +87,23 @@ function SectionWorks({
         </ul>
       )}
 
-      {section.groups &&
+      {nonEmpty(section.groups) &&
         section.groups.map((g, gi) => (
           <div key={gi} className="wk-sub">
-            <div className="wk-sub-head">{g.heading}</div>
+            {g.heading && <div className="wk-sub-head">{g.heading}</div>}
             <ul className="wk-list">
-              {g.items.map((it, i) => (
+              {(g.items ?? []).map((it, i) => (
                 <WorkLine key={i} item={{ name: it }} onOpen={onOpen} />
               ))}
             </ul>
           </div>
         ))}
 
-      {(section.awards || section.footer) && (
+      {(nonEmpty(section.awards) || section.footer) && (
         <div className="wk-foot">
-          {section.awards && (
+          {nonEmpty(section.awards) && (
             <p className="wk-foot-line">
-              <span className="wk-foot-label">{data.awardsLabel}</span>
+              {data.awardsLabel && <span className="wk-foot-label">{data.awardsLabel}</span>}
               <span className="wk-foot-val accent">{section.awards.join('  ·  ')}</span>
             </p>
           )}
@@ -111,25 +114,25 @@ function SectionWorks({
   )
 }
 
-// 全屏沉浸详情：渲染该作品的 md（banner + 标题 + markdown 正文 + 外链）；
-// 无 md 时回退到占位 banner + meta/标签简介
+// Full-screen immersive detail: renders the work's md (banner + title + markdown body + external link);
+// without an md, falls back to a placeholder banner + a meta/tags summary
 function WorkDetail({
   item,
   data,
   onClose,
 }: {
-  item: WorkListItem
-  data: WorksLang
+  item: WorkItem
+  data: WorksLabels
   onClose: () => void
 }) {
   const [bannerError, setBannerError] = useState(false)
   const doc = getWorkDoc(item.slug)
   const title = (doc && doc.title) || item.name
-  const banner = doc && doc.banner
-  // 有 md 详情时展示完整信息；无 md 时详情页只保留标题 + 统一占位文案
+  const banner = asset(doc?.banner)
+  // With an md detail show the full info; without one, the detail keeps only the title + the shared placeholder copy
   const link = doc ? doc.link || item.link : null
   const tags = doc ? doc.tags || item.tags : null
-  // 副标题不含年份；标签单独做 badge 展示
+  // The subtitle excludes the year; tags are shown separately as badges
   const sub = doc ? [item.meta, doc.role].filter(Boolean).join('  ·  ') : ''
 
   return (
@@ -180,12 +183,12 @@ function WorkDetail({
 
           {doc && doc.body ? (
             <div className="wk-md">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} urlTransform={mdUrl}>
                 {doc.body}
               </ReactMarkdown>
             </div>
           ) : (
-            // 无 md：演示详情页支持的组件 —— 介绍文本 + 图片/视频占位 + 跳转按钮
+            // No md: demo the components a detail page supports — intro text + image/video placeholder + link button
             <>
               <p className="wk-detail-desc">{data.detailPlaceholder}</p>
               <div className="wk-detail-ph-img" aria-hidden="true">
@@ -213,14 +216,14 @@ function WorkDetail({
   )
 }
 
-export default function Works({ lang, innerRef }: { lang: 'en' | 'zh'; innerRef: Ref<HTMLElement> }) {
-  const data = WORKS[lang]
-  const sections = data.sections
+export default function Works({ innerRef }: { innerRef: Ref<HTMLElement> }) {
+  const data: WorksLabels = content.works.uiLabels ?? {}
+  const sections = content.works.sections ?? []
   const count = sections.length
 
-  const [active, setActive] = useState<WorkListItem | null>(null) // 当前打开详情的作品 item
+  const [active, setActive] = useState<WorkItem | null>(null) // the work item whose detail is currently open
 
-  // 竖滚 pin 转横移：测量整排卡片的实际可横移距离（px），竖滚进度 → 横移
+  // Pinned vertical scroll → horizontal pan: measure how far the row of cards can actually pan (px); vertical scroll progress → pan
   const galleryRef = useRef<HTMLDivElement>(null)
   const trackRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({
@@ -228,7 +231,7 @@ export default function Works({ lang, innerRef }: { lang: 'en' | 'zh'; innerRef:
     offset: ['start start', 'end end'],
   })
 
-  // track 实际宽度 - 视口宽 = 需要横移的距离；随尺寸/语言变化重测
+  // actual track width − viewport width = distance to pan; re-measured when the size changes
   const [scrollRange, setScrollRange] = useState(0)
   useEffect(() => {
     const el = trackRef.current
@@ -242,14 +245,14 @@ export default function Works({ lang, innerRef }: { lang: 'en' | 'zh'; innerRef:
       ro.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [count, lang])
+  }, [count])
 
-  // px 数值插值（比 vw 字符串更顺）；竖滚行程与横移 1:1
+  // Interpolate px numbers (smoother than vw strings); vertical scroll distance maps 1:1 to the pan
   const x = useTransform(scrollYProgress, [0, 1], [0, -scrollRange])
-  // 横移到底时「继续下滑」提示渐隐
+  // The "Keep scrolling" hint fades out once the pan reaches the end
   const hintOpacity = useTransform(scrollYProgress, [0.85, 1], [1, 0])
 
-  // 详情打开时锁滚动 + ESC 关闭
+  // Lock scrolling while a detail is open + close on ESC
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setActive(null)
@@ -263,14 +266,14 @@ export default function Works({ lang, innerRef }: { lang: 'en' | 'zh'; innerRef:
   }, [active])
 
   return (
-    <section className="works" lang={lang} ref={innerRef}>
+    <section className="works" ref={innerRef}>
       <div
         className="wk-gallery"
         ref={galleryRef}
         style={{ height: `calc(100vh + ${scrollRange}px)` }}
       >
         <div className="wk-gallery-sticky">
-          <span className="wk-gallery-title">{data.title}</span>
+          {data.title && <span className="wk-gallery-title">{data.title}</span>}
 
           <motion.div className="wk-track" ref={trackRef} style={{ x }}>
             {sections.map((s) => (
