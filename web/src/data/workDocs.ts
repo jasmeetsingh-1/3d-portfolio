@@ -8,6 +8,7 @@
 //   role    role / responsibility
 //   tags    tag array: [Interactive, Tiger Roar Award]
 //   link    external link (the "Visit site" button)
+//   linkLabel  text of that button (defaults to works.uiLabels.visitLabel)
 // The body (after the frontmatter) is markdown: text / images ![](...) / video <video src=...>.
 //
 // Media (images/videos) go under public/works/ and are referenced with /works/... absolute paths.
@@ -23,6 +24,7 @@ export interface WorkDoc {
   role?: string
   tags?: string[]
   link?: string
+  linkLabel?: string
   body?: string
 }
 

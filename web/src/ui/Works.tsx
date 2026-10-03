@@ -50,8 +50,18 @@ function SectionCard({
     <div className="wk-card">
       <div className="wk-card-head">
         <span className="wk-card-no">{section.no}</span>
-        <h3 className="wk-card-title">{section.title}</h3>
-        <span className="wk-card-tagline">{section.tagline}</span>
+        <h3 className="wk-card-title">
+          {section.titleAccent && <span className="wk-card-title-accent">{section.titleAccent} </span>}
+          {section.title}
+        </h3>
+        {(section.company || section.location) && (
+          <span className="wk-card-company">
+            {section.company}
+            {section.company && section.location && ' - '}
+            {section.location && <em>{section.location}</em>}
+          </span>
+        )}
+        {section.tagline && <span className="wk-card-tagline">{section.tagline}</span>}
       </div>
       <div className="wk-card-cover">
         {cover && !coverError ? (
@@ -207,7 +217,7 @@ function WorkDetail({
               target="_blank"
               rel="noopener noreferrer"
             >
-              {data.visitLabel} <span aria-hidden="true">↗</span>
+              {doc?.linkLabel || data.visitLabel} <span aria-hidden="true">↗</span>
             </a>
           )}
         </article>

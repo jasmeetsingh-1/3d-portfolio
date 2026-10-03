@@ -41,7 +41,10 @@ export interface WorkGroup {
 export interface WorkSection {
   id: string
   no?: string
+  titleAccent?: string
   title?: string
+  company?: string
+  location?: string
   tagline?: string
   coverImage?: string
   items?: WorkItem[]
@@ -57,6 +60,7 @@ export interface WorkDetail {
   role?: string
   tags?: string[]
   link?: string
+  linkLabel?: string
   body?: string
 }
 
